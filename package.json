@@ -1,0 +1,35 @@
+{
+  "name": "navody",
+  "version": "0.1.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "process-pdfs": "node process_pdfs.js",
+    "install-font": "node scripts/install-font.js",
+    "dist": "electron-builder --mac"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1",
+    "sql.js": "^1.7.0"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.theanh.navody",
+    "productName": "Navody",
+    "files": [
+      "**/*",
+      "!samples/**"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
+  }
+}

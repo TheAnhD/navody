@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Navody - Label Creator</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<header class="topbar">
+		<h1>Navody</h1>
+		<nav class="nav">
+			<button data-target="home" class="nav-btn">Home</button>
+			<button data-target="products" class="nav-btn">Products</button>
+			<button data-target="list" class="nav-btn">Products List</button>
+			<button data-target="formats" class="nav-btn">Formats</button>
+		</nav>
+	</header>
+
+	<main class="main">
+		<section id="home" class="section">
+			<h2>Welcome to Navody</h2>
+			<p>This app helps you create sticker labels from product text stored locally.</p>
+			<p>Quick steps:</p>
+			<ol>
+				<li>Go to Products to add product records (name, EAN, text).</li>
+				<li>Go to Products List to browse and search products and select one.</li>
+				<li>Go to Template to set label size and generate a PDF. The PDF will be created and opened for printing.</li>
+			</ol>
+			<p>Defaults use A4. You can change label dimensions and layout in Template.</p>
+		</section>
+
+		<section id="products" class="section hidden">
+			<div class="container">
+				<section class="left">
+					<h2>Add product</h2>
+					<label>Name<br><input id="name"></label>
+					<label>EAN<br><input id="ean"></label>
+					<label>Text body<br><textarea id="text_body" required></textarea></label>
+					<button id="addBtn">Add</button>
+
+					<hr>
+
+					<p>After adding products, go to Products List to find and select them for label generation.</p>
+				</section>
+
+				<section class="right">
+					<!-- Recent heading moved outside the card -->
+					<h3 class="recent-heading">Recent additions</h3>
+					<div id="recentAdded">
+						<ul id="recentList"></ul>
+					</div>
+
+					<div class="upload-area">
+						<h3>Import PDFs</h3>
+						<button id="importBtn">Import selected PDFs</button>
+						<div id="importProgress" class="import-progress"></div>
+					</div>
+				</section>
+			</div>
+		</section>
+
+		<section id="list" class="section hidden">
+			<div class="list-header">
+				<h2>Seznam návodů</h2>
+				<input id="searchInput" placeholder="Search">
+			</div>
+			<ul id="results"></ul>
+		</section>
+
+		<section id="formats" class="section hidden">
+			<div class="formats-area">
+				<div class="formats-form">
+					<h2 class="formats-title-left">Save formats</h2>
+					<label>Format name<br><input id="formatName"></label>
+					<label>Page size<br><select id="fmt_pageSize"><option value="A4">A4</option></select></label>
+					<label>Label width (mm)<br><input id="fmt_labelW" value="50"></label>
+					<label>Label height (mm)<br><input id="fmt_labelH" value="20"></label>
+					<label>Columns<br><input id="fmt_cols" value="3"></label>
+					<label>Rows<br><input id="fmt_rows" value="8"></label>
+					<label>Margin (mm)<br><input id="fmt_margin" value="5"></label>
+					<label>Page top offset (mm)<br><input id="fmt_pageTopOffset" value="0"></label>
+					<label>Page left offset (mm)<br><input id="fmt_pageLeftOffset" value="0"></label>
+					<label>Horizontal gap between labels (mm)<br><input id="fmt_hGap" value="0"></label>
+					<label>Vertical gap between labels (mm)<br><input id="fmt_vGap" value="0"></label>
+					<label>Font size (pt)<br><input id="fmt_fontSize" value="10"></label>
+					<button id="saveFormatBtn">Save Format</button>
+				</div>
+
+				<div class="formats-list-wrap">
+					<h2 class="formats-list-title">List of Formats</h2>
+					<ul id="formatsList"></ul>
+				</div>
+				<div class="formats-preview-wrap">
+					<h3>Preview</h3>
+					<div id="formatPreview" style="width:320px;height:240px;border:1px solid #ddd;background:#fff;"></div>
+				</div>
+			</div>
+		</section>
+
+	</main>
+
+	<!-- Format chooser modal -->
+	<div id="formatModal" class="modal hidden">
+		<div class="modal-overlay"></div>
+		<div class="modal-box">
+			<button id="closeFormatModal" class="modal-close">✕</button>
+			<h3>Choose format</h3>
+			<div id="formatSelectList"></div>
+			<div class="modal-actions">
+				<button id="cancelFormatBtn">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Format edit modal -->
+	<div id="formatEditModal" class="modal hidden">
+		<div class="modal-overlay"></div>
+		<div class="modal-box">
+			<button id="closeFormatEditModal" class="modal-close">✕</button>
+			<h3>Edit format</h3>
+			<label>Name<br><input id="editFormatName"></label>
+			<label>Page size<br><select id="edit_fmt_pageSize"><option value="A4">A4</option></select></label>
+			<label>Label width (mm)<br><input id="edit_fmt_labelW" value="50"></label>
+			<label>Label height (mm)<br><input id="edit_fmt_labelH" value="20"></label>
+			<label>Columns<br><input id="edit_fmt_cols" value="3"></label>
+			<label>Rows<br><input id="edit_fmt_rows" value="8"></label>
+			<label>Margin (mm)<br><input id="edit_fmt_margin" value="5"></label>
+			<label>Page top offset (mm)<br><input id="edit_fmt_pageTopOffset" value="0"></label>
+			<label>Page left offset (mm)<br><input id="edit_fmt_pageLeftOffset" value="0"></label>
+			<label>Horizontal gap between labels (mm)<br><input id="edit_fmt_hGap" value="0"></label>
+			<label>Vertical gap between labels (mm)<br><input id="edit_fmt_vGap" value="0"></label>
+			<label>Font size (pt)<br><input id="edit_fmt_fontSize" value="10"></label>
+			<div style="margin-top:12px"><h4>Preview</h4><div id="editFormatPreview" style="width:360px;height:200px;border:1px solid #ddd;background:#fff"></div></div>
+			<div class="modal-actions">
+				<button id="saveFormatEditBtn">Save</button>
+				<button id="cancelFormatEditBtn">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Edit product modal -->
+	<div id="editModal" class="modal hidden">
+		<div class="modal-overlay"></div>
+		<div class="modal-box">
+			<button id="closeEditModal" class="modal-close">✕</button>
+			<h3>Edit product</h3>
+			<label>EAN (read-only)<br><div id="editEan" class="readonly-field"></div></label>
+			<label>Name<br><input id="editName"></label>
+			<label>Text body<br><textarea id="editText"></textarea></label>
+			<div class="modal-actions">
+				<button id="saveEditBtn">Save</button>
+				<button id="cancelEditBtn">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="formatManager.js"></script>
+	<script src="productManager.js"></script>
+	<script src="renderer.js"></script>
+</body>
+</html>

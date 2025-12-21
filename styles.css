@@ -1,0 +1,259 @@
+/* Design tokens & base */
+:root {
+	--bg: #f6f7f9;
+	--surface: #ffffff;
+	--muted: #6b7280;
+	--text: #0f172a;
+	--accent: #2563eb; /* blue */
+	--accent-600: #1e40af;
+	--danger: #ef4444;
+	--success: #16a34a;
+	--radius: 12px;
+	--card-radius: 12px;
+	--shadow-sm: 0 6px 18px rgba(15,23,42,0.06);
+	--shadow-md: 0 12px 30px rgba(15,23,42,0.08);
+	--gap: 20px;
+}
+
+body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; padding: 0; background: var(--bg); color: var(--text); font-size: 18px; line-height: 1.45; }
+
+/* Topbar */
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px; background: #1f2937; color: #fff; }
+.topbar h1 { margin: 0; font-size: 18px; font-weight: 700; }
+.nav .nav-btn { margin-left: 12px; padding: 8px 12px; background: transparent; color: rgba(255,255,255,0.9); border: none; cursor: pointer; font-weight: 600; border-radius: 8px; }
+.nav .nav-btn:hover { background: rgba(255,255,255,0.04); }
+
+/* Main content */
+.main { padding: 36px 120px; }
+@media (max-width: 1000px) { .main { padding: 28px 40px; } }
+@media (max-width: 640px) { .main { padding: 16px; } }
+
+/* Section spacing */
+.section { margin-bottom: 28px; }
+.hidden { display: none; }
+
+/* Form inputs & buttons */
+label { display: block; margin-bottom: 10px; color: var(--text); font-weight: 600; }
+input, textarea, select { width: 100%; padding: 12px 14px; box-sizing: border-box; border-radius: 8px; border: 1px solid #e6e9ef; background: var(--surface); box-shadow: inset 0 1px 0 rgba(16,24,40,0.02); font-size: 17px; color: var(--text); }
+textarea { min-height: 120px; resize: vertical; }
+button { cursor: pointer; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid transparent; background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+.btn-primary { background: linear-gradient(180deg,var(--accent),var(--accent-600)); color: #fff; border: none; }
+.btn-ghost { background: transparent; border: 1px solid #e6e9ef; }
+
+/* List header (big title & search) */
+.list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.list-header h2 { margin: 0; font-size: 44px; font-weight: 800; color: var(--text); }
+.list-header input { width: 340px; }
+
+#results { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px; }
+#results li { padding: 26px 18px; background: rgba(255,255,255,0.96); border-radius: var(--card-radius); display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px solid rgba(0,0,0,0.04); min-height: 120px; /* no transitions to avoid layout jank */ }
+/* Keep hover subtle but avoid transform/box-shadow that force repaint */
+#results li:hover { background: #fff; }
+
+/* Product title and EAN styling */
+.product-label { display: block; text-align: center; font-weight: 700; color: var(--text); margin-bottom: 10px; line-height: 1.05; font-size: 24px; max-height: 3.3em; overflow: hidden; }
+.product-ean { color: var(--muted); opacity: 0.95; margin-bottom: 12px; font-size: 20px; /* prevent overflow of long numeric EANs */
+	white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block;
+}
+
+/* Icon row */
+.product-actions { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 6px; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px; border-radius: 8px; background: transparent; border: none; transition: transform .12s ease, background .12s ease; }
+.icon-btn:hover { transform: translateY(-3px); background: rgba(16,24,40,0.03); }
+.icon-btn svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.icon-clipboard { color: var(--success); }
+.icon-edit { color: var(--accent); }
+.icon-delete { color: var(--danger); }
+
+/* Recent additions card */
+.recent-heading { font-size: 28px; margin: 0 0 12px 0; color: var(--text); font-weight: 800; }
+#recentAdded { background: var(--surface); padding: 18px; border-radius: 12px; }
+#recentList { list-style: none; margin: 0; padding: 0; }
+#recentList li { padding: 12px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.recent-left { display: flex; flex-direction: column; align-items: flex-start; }
+.recent-name { font-weight: 800; font-size: 18px; color: var(--text); margin-bottom: 6px; }
+.recent-ean { color: var(--muted); font-size: 16px; }
+.recent-open-btn { padding: 8px 12px; border-radius: 10px; border: 1px solid #e6e9ef; background: var(--surface); }
+
+/* Formats list modern cards */
+.formats-grid { display: flex; gap: 24px; align-items: flex-start; }
+/* Constrain formats area width and left-align it */
+#formats .formats-grid { max-width: 1000px; margin: 0; align-items: flex-start; }
+.formats-form { flex: 0 0 420px; max-width: 420px; }
+.formats-list-wrap { flex: 1 1 560px; min-width: 280px; }
+/* Remove left offset on formats list */
+.formats-list-wrap { padding-left: 0; }
+#formatsList { list-style: none; margin: 0; padding: 0; }
+.formats-list-title { margin-left: 0; padding-left: 0; }
+.format-item { display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 14px 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.04); }
+/* Ensure format items fill the column without extra inset */
+.format-item { width: 100%; box-sizing: border-box; margin-left: 0; }
+.format-item > div { display:flex; flex-direction:column; }
+.format-item strong { font-size: 16px; color: var(--text); }
+.fmt-meta { font-size: 13px; color: var(--muted); }
+.format-item .btns { display:flex; gap:10px; }
+.format-item button { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); }
+.format-item button:first-of-type:not([disabled]) { background: var(--accent); color: #fff; border-color: transparent; }
+.format-item button[disabled] { background: rgba(37,99,235,0.12); color: var(--accent); }
+.format-item button:last-of-type { background: transparent; border: 1px solid #eef2f6; color: #374151; }
+
+/* Modal */
+.modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display:flex; align-items:center; justify-content:center; z-index:40; }
+.modal.hidden { display:none; }
+.modal-overlay { position:absolute; inset:0; background: rgba(2,6,23,0.55); }
+.modal-box { position:relative; background: var(--surface); padding: 22px; width: 92%; max-width: 640px; border-radius: 12px; z-index: 41; }
+.modal-box { max-height: calc(100vh - 48px); overflow: auto; }
+.modal-close { position:absolute; right:18px; top:18px; border:none; background:transparent; font-size:20px; cursor:pointer; color: rgba(15,23,42,0.85); line-height:1; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:8px; }
+.modal-close:hover { background: rgba(15,23,42,0.03); color: rgba(15,23,42,1); }
+.modal-box h3 { margin-top:0; margin-bottom:12px; font-size:20px; }
+
+/* Modern style for format chooser options inside modal */
+
+.format-option { display:flex; align-items:center; justify-content:space-between; gap: 16px; padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid rgba(2,6,23,0.03); margin-bottom: 12px; }
+.format-option > div { display:flex; flex-direction:column; align-items:flex-start; }
+.format-option strong { font-size:20px; color: var(--text); margin-bottom:6px; font-weight:800; }
+.format-option .fmt-meta { font-size:13px; color: var(--muted); }
+
+/* Primary 'Use' button style (flat, subtle) */
+.use-btn { padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(37,99,235,0.36); background: #fff; color: var(--accent-600); font-weight: 700; cursor: pointer; box-shadow: none; }
+.use-btn:hover { background: rgba(37,99,235,0.04); transform: none; }
+
+/* Modal action buttons */
+.modal-actions { display:flex; gap:12px; margin-top: 12px; justify-content: flex-end; }
+.modal-actions button { padding: 8px 12px; border-radius: 10px; border: 1px solid #e6e9ef; background: var(--surface); cursor: pointer; }
+.modal-actions button#cancelFormatBtn { background: transparent; border: 1px solid #eef2f6; color: #374151; }
+
+/* Save button styling: same flat style as .use-btn but dark green */
+#saveEditBtn { padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(22,163,74,0.36); background: #fff; color: var(--success); font-weight: 700; cursor: pointer; box-shadow: none; }
+#saveEditBtn:hover { background: rgba(16,185,129,0.04); }
+
+/* Make modal wider for format chooser to match modern look */
+.modal-box.format-modal { max-width: 640px; padding: 18px; }
+
+
+/* Products two-column layout: left = flexible form, right = fixed recent list */
+#products .container {
+	display: flex;
+	flex-wrap: nowrap; /* prevent wrapping to new line */
+	gap: 24px;
+	align-items: flex-start;
+	justify-content: flex-start;
+}
+#products .left {
+	flex: 1 1 auto;
+	max-width: 760px;
+}
+#products .right {
+	flex: 0 0 640px; /* wider sidebar width */
+	width: 640px;
+	margin-left: 24px;
+}
+
+@media (max-width: 1200px) {
+	#products .right { flex: 0 0 520px; width: 520px; }
+}
+@media (max-width: 1000px) {
+	#products .right { flex: 0 0 420px; width: 420px; }
+}
+@media (max-width: 800px) {
+	#products .container { flex-direction: column; flex-wrap: wrap; }
+	#products .left, #products .right { width: 100%; max-width: none; }
+	#recentAdded { position: static; top: auto; margin-top: 16px; margin-left: 0; }
+}
+
+/* Ensure Add product and Recent additions headings align */
+#products .left h2, .recent-heading {
+	margin-top: 0;
+	margin-bottom: 12px;
+	padding-top: 4px;
+}
+
+#products .container { align-items: flex-start; }
+
+/* Larger headings for better readability */
+.list-header h2 { font-size: 44px; }
+
+@media (max-width: 800px) {
+	.list-header h2 { font-size: 36px; }
+	#products .left h2 { font-size: 28px; }
+	.recent-heading { font-size: 20px; }
+}
+
+/* Responsive tweaks */
+@media (max-width: 1000px) {
+	#results { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+	.formats-grid { flex-direction: column; }
+}
+@media (max-width: 640px) {
+	.list-header h2 { font-size: 34px; }
+	#results { grid-template-columns: repeat(1, 1fr); gap: 14px; }
+	.main { padding: 16px; }
+	.modal-box { max-width: 92%; padding: 16px; }
+	/* On very small screens allow modal to align to top and be scrollable */
+	.modal { align-items: flex-start; padding: 12px 8px; overflow: auto; }
+	.modal-box { max-height: calc(100vh - 24px); }
+}
+
+/* Formats page: two-column layout similar to Products */
+#formats h2 { font-size: 34px; margin-top: 0; margin-bottom: 12px; font-weight: 800; color: var(--text); }
+#formats .formats-grid { display: flex; gap: 24px; align-items: flex-start; justify-content: flex-start; }
+#formats .formats-form { flex: 1 1 auto; max-width: 760px; background: var(--surface); padding: 16px; border-radius: 12px; box-shadow: var(--shadow-sm); }
+#formats .formats-list-wrap { flex: 0 0 360px; width: 600px; margin-left: 8px; }
+
+/* Formats area: responsive two-column (form + sidebar) -> stacked on small screens */
+.formats-area { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 520px); grid-auto-rows: auto; gap: 20px 16px; align-items: start; max-width: 1200px; }
+.formats-form { grid-column: 1 / 2; max-width: 760px; }
+.formats-list-wrap { grid-column: 2 / 3; width: 100%; }
+
+/* format items should fill the available column width */
+.format-item { width: 100%; max-width: 100%; box-sizing: border-box; }
+
+/* make the list column expand on very wide screens */
+@media (min-width: 1400px) {
+	.formats-area { grid-template-columns: minmax(0, 1fr) minmax(320px, 640px); }
+}
+
+@media (max-width: 900px) {
+	/* stack vertically on small screens: form then list */
+	.formats-area { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 16px; max-width: none; }
+	.formats-form { grid-column: 1 / -1; max-width: none; }
+	.formats-list-wrap { grid-column: 1 / -1; margin-top: 8px; }
+	.formats-list-wrap, .formats-form { width: 100%; }
+}
+
+@media (max-width: 1000px) {
+	#formats .formats-list-wrap { flex: 0 0 320px; width: 320px; }
+}
+@media (max-width: 800px) {
+	#formats .formats-grid { flex-direction: column; }
+	#formats .formats-form, #formats .formats-list-wrap { width: 100%; max-width: none; }
+}
+
+/* Smooth utility */
+/* Limit transitions to interactive elements only to avoid global repaint/jank during resize */
+.nav .nav-btn,
+.btn,
+.icon-btn,
+.format-option,
+.format-item,
+#results li,
+.modal-close,
+.use-btn,
+.recent-open-btn {
+	transition: background .12s ease, color .12s ease, transform .12s ease, box-shadow .12s ease;
+}
+
+/* keep other styles */
+#status { margin-top: 10px; }
+/* Header for formats section */
+/* Header aligned to columns using grid so titles sit above respective columns */
+.formats-header { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; margin-bottom: 12px; }
+.formats-header h2 { margin: 0; font-size: 28px; font-weight: 800; color: var(--text); }
+.formats-list-title { text-align: left; }
+
+@media (max-width: 800px) {
+	.formats-header { grid-template-columns: 1fr; }
+	.formats-list-title { text-align: left; }
+}
+
