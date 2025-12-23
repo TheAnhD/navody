@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Ensure NSIS (makensis) is installed
         if: runner.os == 'Windows'
@@ -24,10 +24,12 @@ jobs:
           choco install -y nsis
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build Windows artifacts
-        run: npm run dist -- --win --x64
+      - name: Build Windows artifacts (no publish)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist -- --win --x64 --publish never
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
