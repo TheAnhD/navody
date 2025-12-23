@@ -44,8 +44,8 @@ class ProductManager {
 
             // create/load more control
             this.loadMoreBtn = document.createElement('button');
-            this.loadMoreBtn.textContent = 'Load more';
-            this.loadMoreBtn.className = 'btn';
+            this.loadMoreBtn.textContent = (window.getI18nMessage && window.getI18nMessage('load_more')) || 'Load more';
+            this.loadMoreBtn.className = 'btn btn-ghost';
             this.loadMoreBtn.style.display = 'none';
             this.loadMoreBtn.addEventListener('click', async () => {
                 this._page += 1;
@@ -61,14 +61,14 @@ class ProductManager {
         if (this.addBtn) {
             this.addBtn.addEventListener('click', async () => {
                 const product = { name: this.nameEl?.value?.trim(), ean: this.eanEl?.value?.trim(), text_body: this.textEl?.value };
-                if (!product.name) return alert('Name required');
-                if (!product.text_body || String(product.text_body).trim().length === 0) return alert('Text body is required');
+                if (!product.name) return alert((window.getI18nMessage && window.getI18nMessage('name_required')) || 'Name required');
+                if (!product.text_body || String(product.text_body).trim().length === 0) return alert((window.getI18nMessage && window.getI18nMessage('text_body_required')) || 'Text body is required');
                 const created = await window.api.insertProduct(product);
                 this.pushRecent({ id: created.id, name: created.name, ean: created.ean });
                 if (this.nameEl) this.nameEl.value = '';
                 if (this.eanEl) this.eanEl.value = '';
                 if (this.textEl) this.textEl.value = '';
-                if (this.generateStatusEl) this.generateStatusEl.textContent = 'Product added';
+                if (this.generateStatusEl) this.generateStatusEl.textContent = (window.getI18nMessage && window.getI18nMessage('product_added')) || 'Product added';
                 if (this.searchInput) this.searchInput.dispatchEvent(new Event('input'));
             });
         }
@@ -128,7 +128,7 @@ class ProductManager {
 
             const clipBtn = document.createElement('button');
             clipBtn.className = 'icon-btn icon-clipboard';
-            clipBtn.title = 'Generate PDF';
+            clipBtn.title = (window.getI18nMessage && window.getI18nMessage('generate_pdf')) || 'Generate PDF';
         clipBtn.innerHTML = `
             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="2" width="6" height="4" rx="1" stroke-linejoin="round"/><rect x="3" y="6" width="18" height="16" rx="2" stroke-linejoin="round"/></svg>`;
             clipBtn.addEventListener('click', (ev) => {
@@ -140,7 +140,7 @@ class ProductManager {
 
             const editBtn = document.createElement('button');
             editBtn.className = 'icon-btn icon-edit';
-            editBtn.title = 'Edit';
+            editBtn.title = (window.getI18nMessage && window.getI18nMessage('edit')) || 'Edit';
         editBtn.innerHTML = `
             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
             editBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this.openEditModal(it); });
@@ -148,12 +148,12 @@ class ProductManager {
 
             const delBtn = document.createElement('button');
             delBtn.className = 'icon-btn icon-delete';
-            delBtn.title = 'Delete';
+            delBtn.title = (window.getI18nMessage && window.getI18nMessage('delete')) || 'Delete';
         delBtn.innerHTML = `
             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
             delBtn.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
-                if (!confirm('Delete this product? This action cannot be undone.')) return;
+                if (!confirm((window.getI18nMessage && window.getI18nMessage('confirm_delete_product')) || 'Delete this product? This action cannot be undone.')) return;
                 try {
                     await window.api.deleteProduct(it.id);
                     const rec = this.getRecent().filter(r => String(r.id) !== String(it.id));
@@ -184,10 +184,18 @@ class ProductManager {
         const eanEl = document.createElement('div'); eanEl.className = 'recent-ean'; eanEl.textContent = it.ean ? it.ean : '';
         left.appendChild(nameEl); left.appendChild(eanEl);
         li.appendChild(left);
-        const openBtn = document.createElement('button'); openBtn.className = 'recent-open-btn'; openBtn.textContent = 'Open PDF'; openBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); this._formatModalBtn = openBtn; this.openFormatModal(it.id, openBtn); });
+            const openBtn = document.createElement('button'); openBtn.className = 'recent-open-btn btn'; openBtn.textContent = (window.getI18nMessage && window.getI18nMessage('open_pdf')) || 'Open PDF'; openBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); this._formatModalBtn = openBtn; this.openFormatModal(it.id, openBtn); });
         li.appendChild(openBtn);
         this.recentListEl.appendChild(li);
     }); }
+
+    // Called by renderer when locale changes so dynamic labels update
+    refreshI18n() {
+        // update load more button
+        if (this.loadMoreBtn) this.loadMoreBtn.textContent = (window.getI18nMessage && window.getI18nMessage('load_more')) || 'Load more';
+        // update recent open buttons
+        this.renderRecent();
+    }
 
     openFormatModal(productId, btn) {
         if (this.formatSelectList) {

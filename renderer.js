@@ -49,6 +49,101 @@ window.addEventListener('DOMContentLoaded', () => {
 	window.formatManager.renderFormats();
 	window.productManager.renderRecent();
 
+	// Simple i18n: load locale files and replace data-i18n attributes
+	const i18n = { current: 'en', messages: {} };
+
+	async function loadLocale(code) {
+		if (i18n.messages[code]) return i18n.messages[code];
+		try {
+			// Prefer fetch but fall back to embedded locales (window._LOCALES) if running from file:// or packaged app
+			try {
+				const res = await fetch(`locales/${code}.json`);
+				if (res && res.ok) {
+					const json = await res.json();
+					i18n.messages[code] = json;
+					return json;
+				}
+			} catch (fetchErr) {
+				// ignore fetch error and fall back
+			}
+			if (window && window._LOCALES && window._LOCALES[code]) {
+				i18n.messages[code] = window._LOCALES[code];
+				return i18n.messages[code];
+			}
+			throw new Error('locale not found');
+		} catch (e) {
+			console.warn('Failed to load locale', code, e);
+			return {};
+		}
+	}
+
+	async function applyLocale(code) {
+		i18n.current = code;
+		const msgs = await loadLocale(code);
+		document.querySelectorAll('[data-i18n]').forEach(el => {
+			const key = el.dataset.i18n;
+			if (!msgs || !msgs[key]) return;
+			// If element contains form controls or inputs, replace only the leading text node
+			if (el.querySelector && el.querySelector('input, textarea, select, .readonly-field')) {
+				// find first text node child and replace its text
+				for (let node of Array.from(el.childNodes)) {
+					if (node.nodeType === Node.TEXT_NODE) {
+						node.textContent = msgs[key];
+						break;
+					}
+				}
+			} else {
+				el.textContent = msgs[key];
+			}
+		});
+
+		// placeholders (data-i18n-placeholder)
+		document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+			const key = el.dataset.i18nPlaceholder;
+			if (msgs && msgs[key]) el.setAttribute('placeholder', msgs[key]);
+		});
+
+		// update dynamic labels: import button, add button, recent open buttons
+		const importBtn = document.getElementById('importBtn');
+		const addBtn = document.getElementById('addBtn');
+		if (importBtn && msgs && msgs.import_pdfs) importBtn.textContent = msgs.import_pdfs;
+		if (addBtn && msgs && msgs.add) addBtn.textContent = msgs.add;
+		// recent list open buttons
+		document.querySelectorAll('.recent-open-btn, .recent-open-btn.btn').forEach(b => {
+			if (msgs && msgs.open_pdf) b.textContent = msgs.open_pdf;
+		});
+
+		// mark the active flag
+		document.querySelectorAll('.lang-picker .flag').forEach(img => {
+			if (img.dataset.locale === code) img.classList.add('active'); else img.classList.remove('active');
+		});
+
+		// expose synchronous helpers after loading messages
+		window.getI18nMessage = (k) => {
+			if (!k) return '';
+			const m = i18n.messages[i18n.current] || (window._LOCALES && window._LOCALES[i18n.current]) || {};
+			return m[k] || '';
+		};
+		window.getCurrentLocale = () => i18n.current;
+
+		// notify managers to refresh dynamic texts if they expose a refresh method
+		if (window.formatManager && typeof window.formatManager.refreshI18n === 'function') window.formatManager.refreshI18n();
+		if (window.productManager && typeof window.productManager.refreshI18n === 'function') window.productManager.refreshI18n();
+	}
+
+	// wire topbar flag clicks
+	const langPicker = document.getElementById('langPicker');
+	if (langPicker) {
+		langPicker.addEventListener('click', (ev) => {
+			const tgt = ev.target.closest('.flag');
+			if (!tgt) return;
+			const code = tgt.dataset.locale || 'en';
+			applyLocale(code);
+		});
+		// default to en
+		applyLocale('en');
+	}
+
 	// initial products load if the list exists
 	const searchInput = document.getElementById('searchInput');
 	if (searchInput) searchInput.dispatchEvent(new Event('input'));

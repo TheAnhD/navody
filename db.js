@@ -2,7 +2,39 @@ const fs = require('fs');
 const path = require('path');
 const initSqlJs = require('sql.js');
 
-const DB_FILE = path.join(__dirname, 'data.sqlite');
+// Determine a writable location for the DB. Prefer explicit env override, then Electron's userData
+// (for packaged apps on Windows/macOS). Fall back to project dir for scripts/dev mode.
+let baseDir = __dirname;
+if (process.env.NAVODY_DATA_DIR) {
+	baseDir = process.env.NAVODY_DATA_DIR;
+} else {
+	try {
+		// If running inside Electron main process, prefer app.getPath('userData')
+		const electron = require('electron');
+		if (electron && electron.app && typeof electron.app.getPath === 'function') {
+			baseDir = electron.app.getPath('userData');
+		}
+	} catch (e) {
+		// not running in Electron or require failed, keep __dirname
+	}
+}
+
+// Ensure base directory exists and is writable
+try { fs.mkdirSync(baseDir, { recursive: true }); } catch (e) { /* ignore mkdir errors */ }
+
+const DB_FILE = path.join(baseDir, 'data.sqlite');
+
+// If we picked a different baseDir than the repo root and there's an existing DB next to the repo,
+// copy it to the new location so packaged apps keep development data when possible.
+const devDbFile = path.join(__dirname, 'data.sqlite');
+if (DB_FILE !== devDbFile && fs.existsSync(devDbFile) && !fs.existsSync(DB_FILE)) {
+	try {
+		fs.copyFileSync(devDbFile, DB_FILE);
+		console.log('Navody: copied existing data.sqlite from project root to', DB_FILE);
+	} catch (e) {
+		console.warn('Navody: failed to copy project data.sqlite to userData:', e && e.message);
+	}
+}
 
 class Database {
 	constructor() {

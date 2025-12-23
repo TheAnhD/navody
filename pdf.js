@@ -119,50 +119,67 @@ async function generatePdfForProduct(product, template) {
 			const x = pageLeftOffset + margin + c * (labelW + hGap);
 			const y = pageHeight - pageTopOffset - margin - (r + 1) * labelH - r * vGap;
 
-			// Wrap name separately and render it first (same base font size), then body below.
-			const bodyText = String(product.text_body || '').trim();
-			const nameTextLocal = nameText || '';
+									// Wrap name separately and render it first (same base font size), then body below.
+									// Ensure bodyText does not contain any leading copies of the product name (avoid duplication).
+									const nameTextLocal = nameText || '';
+									let bodyText = String(product.text_body || '').trim();
+									try {
+										const ft = String(fullText || (product.text_body || '')).trim();
+										// Normalize function: remove diacritics and case for robust comparisons
+										const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+										if (nameTextLocal) {
+											// split into lines and drop any leading lines that equal the name (possibly repeated)
+											const lines = ft.split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim());
+											while (lines.length && normalize(lines[0]) === normalize(nameTextLocal)) {
+												lines.shift();
+											}
+											bodyText = lines.join('\n').trim();
+										} else {
+											bodyText = ft;
+										}
+									} catch (e) {
+										bodyText = String(product.text_body || '').trim();
+									}
 			let usedSize = baseFontSize;
 			let nameLines = [];
 			let bodyLines = [];
-			// try decreasing size until both name+body fit, prefer keeping name intact
-			while (usedSize >= minFontSize) {
+			// Try decreasing size until the full name + full body fits inside the label
+			// allow shrinking down to a low safety floor so long texts can still be rendered
+			const minPossibleSize = 2;
+			const lineHeightFactor = 1.12;
+			while (true) {
 				nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW - mmToPoints(2)) : [];
 				bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW - mmToPoints(2)) : [];
-				const nameH = nameLines.length * usedSize * 1.12 + (nameLines.length ? usedSize * 0.2 : 0);
-				const bodyH = bodyLines.length * usedSize * 1.12;
-				if (nameH + bodyH <= availableInnerH) break;
-				// if name alone is bigger than available, we must reduce usedSize further
-				usedSize -= 1;
+				const nameH = nameLines.length * usedSize * lineHeightFactor + (nameLines.length ? usedSize * 0.2 : 0);
+				const bodyH = bodyLines.length * usedSize * lineHeightFactor;
+				if (nameH + bodyH <= availableInnerH) {
+					break; // everything fits
+				}
+				if (usedSize <= minPossibleSize) {
+					// As a last resort, scale down proportionally to try to fit
+					const scale = availableInnerH / Math.max(1, (nameH + bodyH));
+					usedSize = Math.max(minPossibleSize, usedSize * scale);
+					// recompute wrapped lines with new fractional size
+					nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW - mmToPoints(2)) : [];
+					bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW - mmToPoints(2)) : [];
+					break;
+				}
+				usedSize = Math.max(minPossibleSize, usedSize - 1);
 			}
 
-			// If name still doesn't fit, truncate it to a single fitting line
+			// Build renderLines: include all name + body lines (no truncation) using computed usedSize
 			const topPadding = mmToPoints(1);
 			let accH = 0;
 			let renderLines = [];
-			const nameH = nameLines.length * usedSize * 1.12 + (nameLines.length ? usedSize * 0.2 : 0);
-			if (nameH > availableInnerH) {
-				// create a single-line truncated name
-				let candidate = nameTextLocal;
-				while (candidate.length > 0 && font.widthOfTextAtSize(candidate + '…', usedSize) > (availableInnerW - mmToPoints(4))) {
-					candidate = candidate.slice(0, -1);
-				}
-				if (candidate.length === 0) candidate = (nameTextLocal || '').slice(0, 10);
-				renderLines.push({ text: candidate + (candidate.length < (nameTextLocal || '').length ? '…' : ''), size: usedSize, isName: true });
-				accH = renderLines.reduce((s, l) => s + l.size * 1.12, 0);
-			} else {
-				// Add name lines first
-				for (const ln of nameLines) {
-					renderLines.push({ text: ln, size: usedSize, isName: true });
-					accH += usedSize * 1.12;
-				}
-				// Add body lines, trimming if necessary (drop from bottom)
-				for (const ln of bodyLines) {
-					const lh = usedSize * 1.12;
-					if (accH + lh > availableInnerH) break;
-					renderLines.push({ text: ln, size: usedSize, isName: false });
-					accH += lh;
-				}
+			// Add name lines first (if any)
+			for (const ln of nameLines) {
+				renderLines.push({ text: ln, size: usedSize, isName: true });
+				accH += usedSize * lineHeightFactor;
+			}
+			// Add all body lines; since we ensured they fit, we don't truncate
+			for (const ln of bodyLines) {
+				renderLines.push({ text: ln, size: usedSize, isName: false });
+				accH += usedSize * lineHeightFactor;
 			}
 
 			// Align to top inside the label

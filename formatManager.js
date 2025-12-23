@@ -179,7 +179,9 @@ class FormatManager {
             const btns = document.createElement('div');
             btns.className = 'btns';
             const editBtn = document.createElement('button');
-            editBtn.textContent = 'Edit';
+            editBtn.className = 'btn btn-primary';
+            editBtn.dataset.i18n = 'edit';
+            editBtn.textContent = (window.getI18nMessage && window.getI18nMessage('edit')) || 'Edit';
             editBtn.addEventListener('click', () => {
                 // open modal and populate editFields
                 if (this.editFields.name) this.editFields.name.value = f.name || '';
@@ -206,13 +208,21 @@ class FormatManager {
                 this.renderEditPreview();
             });
             const delBtn = document.createElement('button');
-            delBtn.textContent = 'Delete';
+            delBtn.className = 'btn btn-ghost';
+            delBtn.dataset.i18n = 'delete';
+            delBtn.textContent = (window.getI18nMessage && window.getI18nMessage('delete')) || 'Delete';
             delBtn.addEventListener('click', () => { const a = this.getFormats(); a.splice(idx,1); this.saveFormats(a); this.renderFormats(); });
             btns.appendChild(editBtn);
             btns.appendChild(delBtn);
             li.appendChild(btns);
             this.listEl.appendChild(li);
         });
+    }
+
+    // Called by renderer when locale changes so dynamic labels update
+    refreshI18n() {
+        // re-render to pick up new button labels
+        this.renderFormats();
     }
 
     _closeEditModal() {
@@ -260,8 +270,9 @@ class FormatManager {
             title.innerHTML = `<strong>${f.name}</strong><div style="font-size:12px;color:#666">${f.labelWidthMm}x${f.labelHeightMm} mm • ${f.cols}x${f.rows}</div>`;
             const actions = document.createElement('div');
             const useBtn = document.createElement('button');
-            useBtn.textContent = 'Use';
-            useBtn.className = 'use-btn';
+            useBtn.className = 'use-btn btn';
+            useBtn.dataset.i18n = 'use';
+            useBtn.textContent = (window.getI18nMessage && window.getI18nMessage('use')) || 'Use';
             useBtn.addEventListener('click', () => { if (onUse) onUse(f); });
             actions.appendChild(useBtn);
             div.appendChild(title);

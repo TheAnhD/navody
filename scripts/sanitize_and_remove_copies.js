@@ -1,6 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const { fileURLToPath } = require('url');
 const db = require('../db');
+
+function maybeFileUrlToPath(p) {
+  if (!p) return p;
+  if (typeof p === 'string' && p.startsWith('file://')) return fileURLToPath(p);
+  return p;
+}
 
 (async ()=>{
   await db.init();
@@ -46,8 +53,8 @@ const db = require('../db');
         await db.updateProductEan({ id: r.id, ean: cleaned });
         changes.push({ id: r.id, before: r.ean, after: cleaned });
         // also rename text file if exists
-        const oldTxt = path.join(textsDir, (r.ean || '').toString() + '.txt');
-        const newTxt = path.join(textsDir, cleaned + '.txt');
+        const oldTxt = maybeFileUrlToPath(path.join(textsDir, (r.ean || '').toString() + '.txt'));
+        const newTxt = maybeFileUrlToPath(path.join(textsDir, cleaned + '.txt'));
         try {
           if (fs.existsSync(oldTxt)) {
             fs.renameSync(oldTxt, newTxt);
@@ -79,10 +86,11 @@ const db = require('../db');
     const files = fs.readdirSync(textsDir);
     const copyFiles = files.filter(f => /copy/i.test(f));
     for (const f of copyFiles) {
+      const p = maybeFileUrlToPath(path.join(textsDir, f));
       try {
-        fs.unlinkSync(path.join(textsDir, f));
+        fs.unlinkSync(p);
       } catch (e) {
-        console.error('failed to unlink', f, e.message);
+        console.error('failed to unlink', p, e.message);
       }
     }
     console.log('removed text files containing copy:', copyFiles.length);

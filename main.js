@@ -97,6 +97,36 @@ class MainApp {
 			}
 		});
 
+		// Safe file delete: normalizes file:// URLs and attempts fs.rm, then falls back to shell.trashItem
+		const { fileURLToPath } = require('url');
+
+		async function normalizeToPath(p) {
+			if (!p) throw new Error('Missing path');
+			if (typeof p === 'string' && p.startsWith('file://')) return fileURLToPath(p);
+			return p;
+		}
+
+		async function safeDelete(p) {
+			p = await normalizeToPath(p);
+			try {
+				// attempt to remove file (force avoids error if missing)
+				await fs.promises.rm(p, { force: true, maxRetries: 2 });
+				return { ok: true, method: 'rm' };
+			} catch (err) {
+				console.warn('fs.rm failed, trying trashItem for', p, err && err.message);
+				try {
+					await shell.trashItem(p);
+					return { ok: true, method: 'trash' };
+				} catch (err2) {
+					throw new Error(`Failed to delete ${p}: ${err.message}; trash error: ${err2 && err2.message}`);
+				}
+			}
+		}
+
+		ipcMain.handle('delete-file', async (event, filePath) => {
+			return safeDelete(filePath);
+		});
+
 		// Process multiple PDF files and send progress events
 		ipcMain.handle('process-pdf-files', async (event, filePaths) => {
 			const proc = require('./process_pdfs');

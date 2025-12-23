@@ -5,34 +5,43 @@ const database = require('./db');
 
 // Simple dedupe: split into lines, trim, remove duplicates preserving order, join paragraphs
 function dedupeText(text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (!text) return '';
+  // Normalize newlines and collapse multiple spaces
+  const rawLines = String(text).replace(/\r\n/g, '\n').split(/\n/).map(l => l.replace(/\s+/g, ' ').trim());
   const seen = new Set();
   const out = [];
-  for (const line of lines) {
-    if (!seen.has(line)) {
-      seen.add(line);
+  for (const line of rawLines) {
+    if (!line) continue;
+    // skip trivial short tokens
+    if (line.length <= 2) continue;
+    const key = line.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
       out.push(line);
     }
   }
-  // join into paragraphs of reasonable length
   return out.join('\n');
 }
 
 function chooseNameFromText(text, fileName) {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  const lines = String(text).split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
   const letterRegex = /[\p{L}]/u; // any unicode letter
-  const longWordRegex = /\b\p{L}{3,}\b/iu; // a word with 3+ letters
 
-  for (const line of lines) {
-    if (line.length < 3 || line.length > 120) continue;
-    if (!letterRegex.test(line)) continue; // must contain at least one letter
-    // avoid lines that are mostly punctuation/digits
-    const lettersOnly = line.replace(/[^\p{L}]/gu, '');
-    if (lettersOnly.length < Math.max(1, Math.floor(line.length * 0.2))) continue;
-    if (!longWordRegex.test(line)) continue; // require a reasonably long word
-    return line;
+  // Prefer short heading-like lines near the top (<= 6 words and < 80 chars)
+  for (let i = 0; i < Math.min(8, lines.length); i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.length < 4 || line.length > 90) continue;
+    if (!letterRegex.test(line)) continue;
+    const words = line.split(/\s+/).length;
+    if (words > 12) continue;
+    // prefer all-caps or Title Case or lines with punctuation that looks like a title
+    if (/[A-ZÀ-Ý]/.test(line) || /[:\-–—]/.test(line) || words <= 8) {
+      return line;
+    }
   }
-  // fallback: first non-empty line or filename
+
+  // fallback: first line or filename
   return (lines.find(l => l.length > 0) || fileName).slice(0, 240);
 }
 
@@ -91,9 +100,13 @@ async function processFile(filePath) {
     // Save text with the name prepended so exported .txt and DB text_body contain the name as first line
     // remove any occurrences of the name from the body (normalized match) to avoid duplication
     const normalizeForCompare = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
-    const bodyLines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const bodyLines = String(text || '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    // drop leading lines that repeat the name or are identical to filename
+    while (bodyLines.length && (normalizeForCompare(bodyLines[0]) === normalizeForCompare(name) || normalizeForCompare(bodyLines[0]) === normalizeForCompare(ean))) {
+      bodyLines.shift();
+    }
     const filtered = bodyLines.filter(l => normalizeForCompare(l) !== normalizeForCompare(name));
-    const cleanedBody = filtered.join('\n').trim();
+    const cleanedBody = filtered.join('\n').trim().replace(/\n{2,}/g, '\n');
     const savedText = (name ? String(name).trim() + "\n" : "") + cleanedBody;
     // override text variable so later logic uses cleaned body if needed
     text = cleanedBody;

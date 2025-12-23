@@ -28,7 +28,8 @@
     "icon": "assets/app.icns",
     "files": [
       "**/*",
-      "!samples/**"
+      "!samples/**",
+      "!dist/**"
     ],
     "mac": {
       "target": [

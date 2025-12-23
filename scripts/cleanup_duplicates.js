@@ -1,5 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const { fileURLToPath } = require('url');
+
+function maybeFileUrlToPath(p) {
+  if (!p) return p;
+  if (typeof p === 'string' && p.startsWith('file://')) return fileURLToPath(p);
+  return p;
+}
 const db = require('../db');
 
 function normalizeText(s){ return String(s||'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().trim(); }
@@ -40,14 +47,14 @@ function normalizeText(s){ return String(s||'').normalize('NFD').replace(/\p{M}/
         await db.deleteProduct(r.id);
         actions.merged.push({ from: r.id, to: target.id, ean: key });
         // remove file for r.ean if exists
-        const oldFile = path.join(outDir, rawEan + '.txt');
-        if (fs.existsSync(oldFile)) { fs.unlinkSync(oldFile); actions.deletedFiles.push(oldFile); }
+  const oldFile = maybeFileUrlToPath(path.join(outDir, rawEan + '.txt'));
+  if (fs.existsSync(oldFile)) { fs.unlinkSync(oldFile); actions.deletedFiles.push(oldFile); }
       } else if (key) {
         // no existing target, update r.ean to sanitized
         try { await db.updateProductEan({ id: r.id, ean: sanitized }); actions.trimmedEan.push({ id: r.id, before: rawEan, after: sanitized });
           // rename file if exists
-          const oldFile = path.join(outDir, rawEan + '.txt');
-          const newFile = path.join(outDir, sanitized + '.txt');
+          const oldFile = maybeFileUrlToPath(path.join(outDir, rawEan + '.txt'));
+          const newFile = maybeFileUrlToPath(path.join(outDir, sanitized + '.txt'));
           if (fs.existsSync(oldFile)) {
             if (!fs.existsSync(newFile)) {
               fs.renameSync(oldFile, newFile);
@@ -78,7 +85,7 @@ function normalizeText(s){ return String(s||'').normalize('NFD').replace(/\p{M}/
           }
           await db.deleteProduct(r.id);
           actions.merged.push({ from: r.id, to: target.id, ean: sanitized });
-          const oldFile = path.join(outDir, r.ean + '.txt');
+          const oldFile = maybeFileUrlToPath(path.join(outDir, r.ean + '.txt'));
           if (fs.existsSync(oldFile)) { fs.unlinkSync(oldFile); actions.deletedFiles.push(oldFile); }
         }
       }
