@@ -37,6 +37,13 @@
         "zip"
       ]
     },
-  "publish": []
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/app.ico"
+    },
+    "publish": []
   }
 }
