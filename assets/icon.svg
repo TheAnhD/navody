@@ -5,16 +5,20 @@
   <!-- inner rounded panel (label) -->
   <rect x="112" y="208" width="672" height="600" rx="120" ry="120" fill="#ffffff"/>
   <!-- Barcode block on the right -->
-  <g transform="translate(840,300)">
-    <rect x="-60" y="0" width="40" height="360" fill="#1f2937"/>
-    <rect x="0" y="0" width="16" height="360" fill="#1f2937"/>
-    <rect x="26" y="0" width="10" height="360" fill="#1f2937"/>
-    <rect x="44" y="0" width="6" height="360" fill="#1f2937"/>
-    <rect x="58" y="0" width="12" height="360" fill="#1f2937"/>
+  <g transform="translate(580,300)">
+    <!-- widened barcode: increased stripe widths and spacing -->
+    <rect x="-56" y="0" width="42" height="360" fill="#0f172a"/>
+    <rect x="-10" y="0" width="10" height="360" fill="#0f172a"/>
+    <rect x="14" y="0" width="8" height="360" fill="#0f172a"/>
+    <rect x="32" y="0" width="14" height="360" fill="#0f172a"/>
+    <rect x="52" y="0" width="6" height="360" fill="#0f172a"/>
+    <rect x="72" y="0" width="10" height="360" fill="#0f172a"/>
+    <rect x="92" y="0" width="18" height="360" fill="#0f172a"/>
+    <rect x="116" y="0" width="10" height="360" fill="#0f172a"/>
   </g>
   <!-- Stylized N mark on the label -->
   <g transform="translate(200,260)">
-    <text x="0" y="220" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="240" fill="#0f172a">N</text>
+  <text x="0" y="220" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="240" fill="#0f172a">N</text>
   </g>
   <!-- subtle accent stripe -->
   <rect x="112" y="720" width="672" height="40" rx="20" ry="20" fill="#ffcc00" opacity="0.95"/>

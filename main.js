@@ -76,12 +76,15 @@ class MainApp {
 			try {
 				const openResult = await shell.openPath(pdfPath);
 				console.log('shell.openPath result:', openResult);
+				// restore focus after launching external viewer
+				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
 				if (openResult) {
 					await dialog.showMessageBox({ type: 'error', message: 'Failed to open PDF: ' + openResult });
 				}
 			} catch (err) {
 				console.error('Error opening PDF from main:', err);
 				await dialog.showMessageBox({ type: 'error', message: 'Error opening PDF: ' + err.message });
+				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
 			}
 			return pdfPath;
 		});
@@ -99,6 +102,17 @@ class MainApp {
 
 		// Safe file delete: normalizes file:// URLs and attempts fs.rm, then falls back to shell.trashItem
 		const { fileURLToPath } = require('url');
+
+		// Helper to restore focus to a BrowserWindow with retries (addresses flaky Windows focus behavior)
+		function restoreFocus(win, attempts = 3, delay = 100) {
+			if (!win) return;
+			let i = 0;
+			const t = setInterval(() => {
+				if (!win || win.isDestroyed()) return clearInterval(t);
+				try { win.focus(); } catch (e) {}
+				if (++i >= attempts) clearInterval(t);
+			}, delay);
+		}
 
 		async function normalizeToPath(p) {
 			if (!p) throw new Error('Missing path');
@@ -153,10 +167,14 @@ class MainApp {
 		});
 
 		ipcMain.handle('show-open-dialog', async (event) => {
-			const res = await dialog.showOpenDialog({
+			// Parent the dialog to the sender window so it behaves modally on Windows
+			const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+			const res = await dialog.showOpenDialog(senderWin, {
 				properties: ['openFile', 'multiSelections'],
-			tfilters: [{ name: 'PDF', extensions: ['pdf'] }]
+				filters: [{ name: 'PDF', extensions: ['pdf'] }]
 			});
+			// restore focus to the window after dialog closes (helps with some Windows focus issues)
+			try { restoreFocus(senderWin); } catch (e) {}
 			return res.filePaths || [];
 		});
 	}
