@@ -24,8 +24,15 @@ class PreloadAPI {
 }
 
 // initialize when loaded by Electron preload (guarded)
-if (typeof contextBridge !== 'undefined' && contextBridge && typeof contextBridge.exposeInMainWorld === 'function') {
-	new PreloadAPI();
+try {
+    if (typeof contextBridge !== 'undefined' && contextBridge && typeof contextBridge.exposeInMainWorld === 'function') {
+        new PreloadAPI();
+    }
+} catch (e) {
+    console.debug('preload init failed', e && e.message);
 }
 
-module.exports = { PreloadAPI };
+// Safely export only when CommonJS module system is available (avoid ReferenceError in packaged renderer)
+if (typeof module !== 'undefined' && module && module.exports) {
+    module.exports = { PreloadAPI };
+}
