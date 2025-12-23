@@ -27,6 +27,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Pre-download Electron into cache (retries)
+        shell: pwsh
+        run: |
+          $version = node -p "require('electron/package.json').version".Trim()
+          Write-Host "Electron version: $version"
+          $cache = Join-Path $env:RUNNER_TEMP "electron-cache"
+          New-Item -ItemType Directory -Force -Path $cache | Out-Null
+          $url = "https://github.com/electron/electron/releases/download/v$version/electron-v$version-win32-x64.zip"
+          $dest = Join-Path $cache "electron-v$version-win32-x64.zip"
+          $max = 6; $i = 0
+          while ($i -lt $max -and -not (Test-Path $dest)) {
+            try {
+              Write-Host "Downloading Electron (attempt $($i+1)) -> $url"
+              Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -TimeoutSec 240
+            } catch {
+              Write-Host "Download attempt $($i+1) failed: $($_.Exception.Message)"
+              Remove-Item -Force $dest -ErrorAction SilentlyContinue
+              Start-Sleep -Seconds (10 * ($i+1))
+            }
+            $i++
+          }
+          if (-not (Test-Path $dest)) { Write-Error "Failed to download Electron $version after $max attempts"; exit 1 }
+          Write-Host "Downloaded Electron to $dest"
+
       - name: Verify icon exists
         run: |
           if (Test-Path assets/app.ico) { echo "assets/app.ico present" } else { echo "assets/app.ico missing" }
@@ -35,6 +59,9 @@ jobs:
       - name: Build Windows artifacts (no publish)
         shell: pwsh
         run: |
+          $cache = Join-Path $env:RUNNER_TEMP "electron-cache"
+          $env:ELECTRON_CACHE = $cache
+          Write-Host "ELECTRON_CACHE=$env:ELECTRON_CACHE"
           Write-Host "Starting electron-builder (output => build.log)"
           npx electron-builder --win --x64 --publish never *>&1 | Tee-Object -FilePath build.log
           $exit = $LASTEXITCODE
