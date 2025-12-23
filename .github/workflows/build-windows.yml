@@ -9,6 +9,12 @@ jobs:
   build-windows:
     runs-on: windows-latest
 
+    # Expose signing secrets to the job so electron-builder can pick them up.
+    # Provide CSC_LINK (PFX file URL or base64) and CSC_KEY_PASSWORD as GitHub Secrets.
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,11 +62,19 @@ jobs:
           if (Test-Path assets/app.ico) { echo "assets/app.ico present" } else { echo "assets/app.ico missing" }
         shell: pwsh
 
-      - name: Build Windows artifacts (no publish)
+      - name: Check for ffmpeg.dll (build inclusion)
         shell: pwsh
         run: |
-          $cache = Join-Path $env:RUNNER_TEMP "electron-cache"
-          $env:ELECTRON_CACHE = $cache
+          if (Test-Path build/ffmpeg.dll) { Write-Host "build/ffmpeg.dll present — it will be included in the package." } else { Write-Warning "build/ffmpeg.dll missing. Place the correct x64 ffmpeg.dll at build/ffmpeg.dll so it will be packaged next to the exe." }
+
+      - name: Build Windows artifacts (no publish)
+        shell: pwsh
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          Write-Host "Signing env CSC_LINK present? -> $([bool]::Parse(([string]::IsNullOrEmpty($env:CSC_LINK) ) -eq $false -as [string]))"
           Write-Host "ELECTRON_CACHE=$env:ELECTRON_CACHE"
           Write-Host "Starting electron-builder (output => build.log)"
           npx electron-builder --win --x64 --publish never *>&1 | Tee-Object -FilePath build.log
@@ -76,3 +90,41 @@ jobs:
           path: |
             dist/
             build.log
+
+      # Create a GitHub Release and upload the built portable EXE (uses repository GITHUB_TOKEN).
+      - name: Create Release v1.0.0
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v1.0.0
+          release_name: "Návod"
+          body: "Release v1.0.0 — Windows portable build"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-artifacts
+          path: release-files
+
+      - name: Upload portable EXE to the Release
+        if: always()
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $uploadUrl = '${{ steps.create_release.outputs.upload_url }}'
+          $artifactDir = 'release-files'
+          $exe = Get-ChildItem $artifactDir -Recurse -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { Write-Error "No exe found in $artifactDir"; exit 1 }
+          $filePath = $exe.FullName
+          $fileName = $exe.Name
+          $uploadUrl = ($uploadUrl -replace '\{.*\}$','') + "?name=$fileName"
+          Write-Host "Uploading $filePath to $uploadUrl"
+          $token = $env:GITHUB_TOKEN
+          $bytes = [System.IO.File]::ReadAllBytes($filePath)
+          $result = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/octet-stream' } -Body $bytes -UseBasicParsing
+          Write-Host "Upload result: $($result | ConvertTo-Json -Depth 3)"

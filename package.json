@@ -44,8 +44,16 @@
       ],
       "icon": "assets/app.ico"
     },
+    "extraResources": [
+      {
+        "from": "build/ffmpeg.dll",
+        "to": ".",
+        "filter": ["**/ffmpeg.dll"]
+      }
+    ],
     "asarUnpack": [
-      "node_modules/sql.js/dist/**"
+      "node_modules/sql.js/dist/**",
+      "**/ffmpeg.dll"
     ],
     "publish": []
   }
