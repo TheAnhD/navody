@@ -14,7 +14,7 @@ class PreloadAPI {
 			onProcessPdfProgress: (cb) => {
 				ipcRenderer.on('process-pdf-progress', (event, progress) => cb(progress));
 			},
-				showOpenDialog: () => ipcRenderer.invoke('show-open-dialog'),
+			showOpenDialog: () => ipcRenderer.invoke('show-open-dialog'),
 		};
 		if (typeof contextBridge !== 'undefined' && contextBridge && typeof contextBridge.exposeInMainWorld === 'function') {
 			contextBridge.exposeInMainWorld('api', this.api);

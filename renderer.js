@@ -1,5 +1,86 @@
 // Wrap initialization to run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
+
+	// Simple non-blocking toast so we avoid native alert() which can steal focus on Windows
+	function showToast(message, opts = {}) {
+		const root = document.body;
+		let container = document.getElementById('navody_toast_container');
+		if (!container) {
+			container = document.createElement('div');
+			container.id = 'navody_toast_container';
+			container.style.position = 'fixed';
+			container.style.bottom = '18px';
+			container.style.right = '18px';
+			container.style.zIndex = 99999;
+			root.appendChild(container);
+		}
+
+		// expose for legacy/backup copies that may run in this renderer
+		if (!window.showToast) window.showToast = showToast;
+		const el = document.createElement('div');
+		el.className = 'navody_toast';
+		el.textContent = message;
+		el.style.background = opts.background || 'rgba(2,6,23,0.88)';
+		el.style.color = opts.color || '#fff';
+		el.style.padding = '10px 14px';
+		el.style.marginTop = '8px';
+		el.style.borderRadius = '8px';
+		el.style.boxShadow = '0 6px 20px rgba(2,6,23,0.45)';
+		container.appendChild(el);
+		setTimeout(() => { try { el.style.opacity = '0'; el.style.transition = 'opacity 240ms ease'; setTimeout(()=>el.remove(),300); } catch(e){} }, opts.duration || 3000);
+	}
+
+	// non-blocking confirm modal that returns a Promise<boolean>
+	function showConfirm(message, opts = {}) {
+		return new Promise((resolve) => {
+			let overlay = document.getElementById('navody_confirm_overlay');
+			if (!overlay) {
+				overlay = document.createElement('div');
+				overlay.id = 'navody_confirm_overlay';
+				overlay.style.position = 'fixed';
+				overlay.style.left = '0';
+				overlay.style.top = '0';
+				overlay.style.width = '100%';
+				overlay.style.height = '100%';
+				overlay.style.display = 'flex';
+				overlay.style.alignItems = 'center';
+				overlay.style.justifyContent = 'center';
+				overlay.style.background = 'rgba(0,0,0,0.4)';
+				overlay.style.zIndex = 100000;
+				overlay.innerHTML = `
+				<div style="background:#fff;color:#111;padding:18px;border-radius:10px;max-width:520px;box-shadow:0 8px 30px rgba(2,6,23,0.25);">
+					<div style="margin-bottom:12px;white-space:pre-wrap;">${String(message).replace(/</g,'&lt;')}</div>
+					<div style="text-align:right">
+						<button id="navody_confirm_cancel" style="margin-right:8px;">${(opts.cancelText)||'Cancel'}</button>
+						<button id="navody_confirm_ok">${(opts.okText)||'OK'}</button>
+					</div>
+				</div>`;
+				document.body.appendChild(overlay);
+				const okBtn = overlay.querySelector('#navody_confirm_ok');
+				const cancelBtn = overlay.querySelector('#navody_confirm_cancel');
+				const cleanup = (val) => {
+					try { overlay.remove(); } catch(e){}
+					resolve(Boolean(val));
+				};
+				okBtn.addEventListener('click', () => cleanup(true));
+				cancelBtn.addEventListener('click', () => cleanup(false));
+				// handle ESC
+				document.addEventListener('keydown', function onKey(e){ if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); cleanup(false); } });
+			} else {
+				// overlay already exists; reuse it
+				overlay.querySelector('div > div').textContent = message;
+				const okBtn = overlay.querySelector('#navody_confirm_ok');
+				const cancelBtn = overlay.querySelector('#navody_confirm_cancel');
+				const cleanup = (val) => { try { overlay.remove(); } catch(e){} resolve(Boolean(val)); };
+				okBtn.onclick = () => cleanup(true);
+				cancelBtn.onclick = () => cleanup(false);
+			}
+		});
+	}
+
+	// expose for other modules
+	if (!window.showConfirm) window.showConfirm = showConfirm;
+
 	// Navigation
 	const navButtons = document.querySelectorAll('.nav-btn');
 	const sections = document.querySelectorAll('.section');
@@ -158,7 +239,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			importProgress.innerHTML = '';
 			// Prefer native dialog to get real file paths
 			const paths = await window.api.showOpenDialog();
-			if (!paths || paths.length === 0) return alert('No files selected.');
+			if (!paths || paths.length === 0) { showToast('No files selected.'); return; }
 			if (!listenerRegistered) {
 				window.api.onProcessPdfProgress((progress) => {
 					const line = document.createElement('div');

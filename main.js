@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 class MainApp {
 	constructor() {
@@ -64,8 +65,10 @@ class MainApp {
 			console.log('generate-pdf called for productId:', productId, 'product:', product);
 			if (!product) {
 				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				console.log('generate-pdf: product not found, showing error dialog');
 				await dialog.showMessageBox(senderWin, { type: 'error', message: 'Product not found' });
-				restoreFocus(senderWin);
+				restoreFocus(senderWin, 8, 150, 'product-not-found');
+				setTimeout(() => restoreFocus(senderWin, 6, 200, 'product-not-found-delayed'), 300);
 				throw new Error('Product not found');
 			}
 			const result = await pdfGen.generatePdfForProduct(product, template);
@@ -73,26 +76,31 @@ class MainApp {
 			const pdfPath = (typeof result === 'string') ? result : (result && result.path) ? result.path : null;
 			if (!pdfPath) {
 				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				console.log('generate-pdf: no pdfPath returned, showing error dialog');
 				await dialog.showMessageBox(senderWin, { type: 'error', message: 'PDF generation failed: no path returned' });
-				restoreFocus(senderWin);
+				restoreFocus(senderWin, 8, 150, 'no-pdf-path');
+				setTimeout(() => restoreFocus(senderWin, 6, 200, 'no-pdf-path-delayed'), 300);
 				throw new Error('PDF generation failed: no path returned');
 			}
 			try {
 				const openResult = await shell.openPath(pdfPath);
 				console.log('shell.openPath result:', openResult);
 				// restore focus after launching external viewer
-				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
+				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win, 6, 150, 'openpath-after-open'), 200); } catch (e) {}
 				if (openResult) {
 					const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+					console.log('generate-pdf: shell.openPath returned error, showing dialog:', openResult);
 					await dialog.showMessageBox(senderWin, { type: 'error', message: 'Failed to open PDF: ' + openResult });
-					restoreFocus(senderWin);
+					restoreFocus(senderWin, 8, 150, 'failed-open');
+					setTimeout(() => restoreFocus(senderWin, 6, 200, 'failed-open-delayed'), 300);
 				}
 			} catch (err) {
 				console.error('Error opening PDF from main:', err);
 				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				console.error('generate-pdf: error opening PDF, showing dialog:', err && err.message);
 				await dialog.showMessageBox(senderWin, { type: 'error', message: 'Error opening PDF: ' + err.message });
-				restoreFocus(senderWin);
-				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
+				restoreFocus(senderWin, 8, 150, 'error-open-exception');
+				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win, 6, 150, 'error-open-exception-delayed'), 200); } catch (e) {}
 			}
 			return pdfPath;
 		});
@@ -112,13 +120,33 @@ class MainApp {
 		const { fileURLToPath } = require('url');
 
 		// Helper to restore focus to a BrowserWindow with retries (addresses flaky Windows focus behavior)
-		function restoreFocus(win, attempts = 3, delay = 100) {
+		function restoreFocus(win, attempts = 8, delay = 150, tag = '') {
 			if (!win) return;
 			let i = 0;
+			console.debug(`restoreFocus start${tag ? ' (' + tag + ')' : ''}: attempts=${attempts} delay=${delay}`);
 			const t = setInterval(() => {
 				if (!win || win.isDestroyed()) return clearInterval(t);
-				try { win.focus(); } catch (e) {}
-				if (++i >= attempts) clearInterval(t);
+				try {
+					win.focus();
+					console.debug(`restoreFocus focus called${tag ? ' (' + tag + ')' : ''} attempt=${i+1}`);
+				} catch (e) {
+					console.debug('restoreFocus focus error', e && e.message);
+				}
+				if (++i >= attempts) {
+					clearInterval(t);
+					console.debug(`restoreFocus done${tag ? ' (' + tag + ')' : ''}`);
+					// Last-resort: toggle alwaysOnTop to force window to front on stubborn platforms
+					try {
+						console.debug('restoreFocus: toggling alwaysOnTop as last resort' + (tag ? ' (' + tag + ')' : ''));
+						win.setAlwaysOnTop(true);
+						win.focus();
+						setTimeout(() => {
+							try { win.setAlwaysOnTop(false); } catch (e) { console.debug('restoreFocus: setAlwaysOnTop(false) failed', e && e.message); }
+						}, 60);
+					} catch (e) {
+						console.debug('restoreFocus alwaysOnTop toggle failed', e && e.message);
+					}
+				}
 			}, delay);
 		}
 

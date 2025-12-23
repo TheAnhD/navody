@@ -61,8 +61,8 @@ class ProductManager {
         if (this.addBtn) {
             this.addBtn.addEventListener('click', async () => {
                 const product = { name: this.nameEl?.value?.trim(), ean: this.eanEl?.value?.trim(), text_body: this.textEl?.value };
-                if (!product.name) return alert((window.getI18nMessage && window.getI18nMessage('name_required')) || 'Name required');
-                if (!product.text_body || String(product.text_body).trim().length === 0) return alert((window.getI18nMessage && window.getI18nMessage('text_body_required')) || 'Text body is required');
+                if (!product.name) { showToast((window.getI18nMessage && window.getI18nMessage('name_required')) || 'Name required'); return; }
+                if (!product.text_body || String(product.text_body).trim().length === 0) { showToast((window.getI18nMessage && window.getI18nMessage('text_body_required')) || 'Text body is required'); return; }
                 const created = await window.api.insertProduct(product);
                 this.pushRecent({ id: created.id, name: created.name, ean: created.ean });
                 if (this.nameEl) this.nameEl.value = '';
@@ -90,7 +90,7 @@ class ProductManager {
                     }
                     this.saveRecent(rec);
                     this.renderRecent();
-                } catch (err) { alert('Error updating product: ' + err.message); }
+                } catch (err) { showToast('Error updating product: ' + err.message); }
             });
         }
     }
@@ -153,14 +153,15 @@ class ProductManager {
             <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
             delBtn.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
-                if (!confirm((window.getI18nMessage && window.getI18nMessage('confirm_delete_product')) || 'Delete this product? This action cannot be undone.')) return;
+                const confirmed = await showConfirm((window.getI18nMessage && window.getI18nMessage('confirm_delete_product')) || 'Delete this product? This action cannot be undone.', { okText: (window.getI18nMessage && window.getI18nMessage('yes')) || 'Yes', cancelText: (window.getI18nMessage && window.getI18nMessage('no')) || 'No' });
+                if (!confirmed) return;
                 try {
                     await window.api.deleteProduct(it.id);
                     const rec = this.getRecent().filter(r => String(r.id) !== String(it.id));
                     this.saveRecent(rec);
                     this.renderRecent();
                     if (this.searchInput) this.searchInput.dispatchEvent(new Event('input'));
-                } catch (err) { alert('Error deleting product: ' + err.message); }
+                } catch (err) { showToast('Error deleting product: ' + err.message); }
             });
             actions.appendChild(delBtn);
 
@@ -242,7 +243,7 @@ class ProductManager {
                 const msgParts = [];
                 if (totalLabelsWidth > pageWidthMm) msgParts.push(`width (${totalLabelsWidth.toFixed(1)}mm > ${pageWidthMm}mm)`);
                 if (totalLabelsHeight > pageHeightMm) msgParts.push(`height (${totalLabelsHeight.toFixed(1)}mm > ${pageHeightMm}mm)`);
-                const proceed = confirm(`The chosen format will overflow the page (${msgParts.join(', ')}).\nClick OK to automatically adjust label size to fit the page, or Cancel to keep values as-is.`);
+                const proceed = await showConfirm(`The chosen format will overflow the page (${msgParts.join(', ')}).\nClick OK to automatically adjust label size to fit the page, or Cancel to keep values as-is.`, { okText: (window.getI18nMessage && window.getI18nMessage('ok')) || 'OK', cancelText: (window.getI18nMessage && window.getI18nMessage('cancel')) || 'Cancel' });
                 if (proceed) {
                     // compute max label width/height that fits when considering offsets and gaps
                     const availableWidthForLabels = pageWidthMm - pageLeftOffsetMm - (marginMm * 2) - Math.max(0, cols - 1) * hGapMm;
@@ -262,7 +263,7 @@ class ProductManager {
         } catch (err) {
             console.error(err);
             if (this.generateStatusEl) this.generateStatusEl.textContent = 'Error: ' + err.message;
-            alert('Error generating PDF: ' + err.message);
+            showToast('Error generating PDF: ' + err.message);
         } finally {
             if (btn) btn.disabled = false;
         }
