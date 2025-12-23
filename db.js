@@ -23,6 +23,7 @@ if (process.env.NAVODY_DATA_DIR) {
 try { fs.mkdirSync(baseDir, { recursive: true }); } catch (e) { /* ignore mkdir errors */ }
 
 const DB_FILE = path.join(baseDir, 'data.sqlite');
+console.log('Navody DB_FILE resolved to', DB_FILE);
 
 // If we picked a different baseDir than the repo root and there's an existing DB next to the repo,
 // copy it to the new location so packaged apps keep development data when possible.
@@ -43,7 +44,27 @@ class Database {
 	}
 
 	async init() {
-		if (!this.SQL) this.SQL = await initSqlJs({ locateFile: file => path.join(__dirname, 'node_modules', 'sql.js', 'dist', file) });
+		if (!this.SQL) {
+			// Provide locateFile that works both in development (node_modules path) and when app is packaged.
+			const locateFile = (file) => {
+				try {
+					const electron = require('electron');
+					if (electron && electron.app && electron.app.isPackaged) {
+						const p = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', file);
+						console.log('sql.js locateFile ->', p);
+						return p;
+					}
+				} catch (e) {
+					// ignore and fallback
+				}
+				// development or fallback
+				const devp = path.join(__dirname, 'node_modules', 'sql.js', 'dist', file);
+				console.log('sql.js locateFile fallback ->', devp);
+				return devp;
+			};
+
+			this.SQL = await initSqlJs({ locateFile });
+		}
 
 		if (fs.existsSync(DB_FILE)) {
 			const data = fs.readFileSync(DB_FILE);

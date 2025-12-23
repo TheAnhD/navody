@@ -46,6 +46,7 @@ function chooseNameFromText(text, fileName) {
 }
 
 async function processFile(filePath) {
+  console.log('processFile start:', filePath);
   const dataBuffer = fs.readFileSync(filePath);
   try {
     const data = await pdf(dataBuffer);
@@ -140,6 +141,7 @@ async function processFile(filePath) {
       } catch (wfErr) {
         console.error('Failed to write text file for', filePath, wfErr.message);
       }
+      console.log('processFile success:', filePath);
       return { ok: true, existing: false, id: res.id, name: res.name, ean: res.ean };
     } catch (dbErr) {
       console.error('DB insert failed for', filePath, dbErr && dbErr.message);
@@ -147,7 +149,7 @@ async function processFile(filePath) {
     }
   }
   catch (err) {
-    console.error('Failed to process', filePath, err.message);
+    console.error('Failed to process', filePath, err && err.stack ? err.stack : err && err.message ? err.message : err);
     return null;
   }
 }
@@ -171,6 +173,7 @@ async function main() {
 }
 
 async function processFiles(filePaths, progressCb) {
+  console.log('processFiles called with', (filePaths || []).length, 'files');
   await database.init();
   const results = [];
   // dedupe paths to avoid double-processing same file
@@ -182,9 +185,11 @@ async function processFiles(filePaths, progressCb) {
       if (progressCb) progressCb({ file: p, status: 'done', result: r });
     } catch (err) {
       results.push(null);
+      console.error('Error processing', p, err && err.stack ? err.stack : err && err.message ? err.message : err);
       if (progressCb) progressCb({ file: p, status: 'error', error: err.message });
     }
   }
+  console.log('processFiles completed, results length', results.length);
   return results;
 }
 
