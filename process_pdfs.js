@@ -3,6 +3,22 @@ const path = require('path');
 const pdf = require('pdf-parse');
 const database = require('./db');
 
+// Determine a writable base directory for saved text outputs. Prefer explicit env override, then
+// Electron's userData (when running inside packaged app). Fall back to __dirname for dev.
+let baseDataDir = __dirname;
+if (process.env.NAVODY_DATA_DIR) {
+  baseDataDir = process.env.NAVODY_DATA_DIR;
+} else {
+  try {
+    const electron = require('electron');
+    if (electron && electron.app && typeof electron.app.getPath === 'function') {
+      baseDataDir = electron.app.getPath('userData');
+    }
+  } catch (e) {
+    // not running in Electron main process or require failed, keep __dirname
+  }
+}
+
 // Simple dedupe: split into lines, trim, remove duplicates preserving order, join paragraphs
 function dedupeText(text) {
   if (!text) return '';
@@ -91,8 +107,8 @@ async function processFile(filePath) {
       // collapse into single line body
       text = uniq.join(' ').replace(/\s+/g, ' ').trim();
     }
-  // ensure output directory exists
-  const outDir = path.join(__dirname, 'samples', 'texts');
+  // ensure output directory exists (use writable baseDataDir)
+  const outDir = path.join(baseDataDir, 'samples', 'texts');
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
     const fileName = path.basename(filePath, path.extname(filePath));
     const ean = fileName;
@@ -149,7 +165,7 @@ async function processFile(filePath) {
     }
   }
   catch (err) {
-    console.error('Failed to process', filePath, err && err.stack ? err.stack : err && err.message ? err.message : err);
+    console.error('Failed to process', filePath, err.message);
     return null;
   }
 }
