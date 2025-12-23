@@ -208,6 +208,20 @@ class MainApp {
 			}
 		});
 
+		// Toggle DevTools for debugging (renderer can call via preload API)
+		ipcMain.handle('toggle-devtools', async (event) => {
+			const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+			try {
+				if (senderWin && senderWin.webContents) {
+					senderWin.webContents.toggleDevTools();
+					return { ok: true };
+				}
+			} catch (e) {
+				console.debug('toggle-devtools failed', e && e.message);
+			}
+			return { ok: false };
+		});
+
 		ipcMain.handle('show-open-dialog', async (event) => {
 			// Parent the dialog to the sender window so it behaves modally on Windows
 			const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;

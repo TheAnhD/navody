@@ -271,5 +271,19 @@ window.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 
+	// keyboard shortcut toggle for devtools (Ctrl+Shift+I) and F12 fallback
+	window.addEventListener('keydown', (ev) => {
+		try {
+			const isMac = navigator.platform.toUpperCase().includes('MAC');
+			// Ctrl+Shift+I on Windows/Linux, Cmd+Opt+I on mac usually; support Ctrl+Shift+I and F12
+			if ((ev.ctrlKey && ev.shiftKey && ev.key.toLowerCase() === 'i') || ev.key === 'F12') {
+				if (window.api && typeof window.api.toggleDevTools === 'function') {
+					window.api.toggleDevTools();
+					ev.preventDefault();
+				}
+			}
+		} catch (e) { /* noop */ }
+	});
+
 	// auto-import feature removed; keep only manual import button above
 });
