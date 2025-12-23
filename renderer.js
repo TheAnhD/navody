@@ -251,8 +251,21 @@ window.addEventListener('DOMContentLoaded', () => {
 			}
 			const res = await window.api.processPdfFiles(paths);
 			console.log('process result', res);
-			// refresh recent/products
+			// refresh recent/products and force a search refresh so new items appear in the list
 			window.productManager.renderRecent();
+			try {
+				const si = document.getElementById('searchInput');
+				// Clear any active filter so imported items are visible, then trigger search
+				if (si) {
+					si.value = '';
+					si.dispatchEvent(new Event('input'));
+				}
+			} catch (e) { console.debug('refresh after import failed', e && e.message); }
+			// show a short toast with number of imported items (count successful results)
+			try {
+				const doneCount = Array.isArray(res) ? res.filter(Boolean).length : (res ? 1 : 0);
+				showToast((window.getI18nMessage && window.getI18nMessage('import_done')) ? (window.getI18nMessage('import_done') + ` (${doneCount})`) : `Import complete (${doneCount})`);
+			} catch(e) {}
 		});
 	}
 

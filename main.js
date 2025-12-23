@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -17,6 +17,12 @@ class MainApp {
 				preload: path.join(__dirname, 'preload.js')
 			}
 		});
+		// Hide the native menu bar and clear the app menu so shortcuts don't show the menu
+		try {
+			Menu.setApplicationMenu(null);
+			this.win.setMenuBarVisibility(false);
+			this.win.autoHideMenuBar = true;
+		} catch (e) { console.debug('Menu hide failed', e && e.message); }
 		this.win.loadFile('index.html');
 	}
 
