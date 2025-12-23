@@ -252,15 +252,24 @@ window.addEventListener('DOMContentLoaded', () => {
 			const res = await window.api.processPdfFiles(paths);
 			console.log('process result', res);
 			// refresh recent/products and force a search refresh so new items appear in the list
-			window.productManager.renderRecent();
 			try {
-				const si = document.getElementById('searchInput');
-				// Clear any active filter so imported items are visible, then trigger search
-				if (si) {
-					si.value = '';
-					si.dispatchEvent(new Event('input'));
-				}
+				const doRefresh = () => {
+					try {
+						if (window.productManager && typeof window.productManager.renderRecent === 'function') {
+							window.productManager.renderRecent();
+						}
+						const si = document.getElementById('searchInput');
+						if (si) {
+							si.value = '';
+							si.dispatchEvent(new Event('input'));
+						}
+					} catch (e) { console.debug('refresh after import failed (inner)', e && e.message); }
+				};
+				// run an immediate refresh and a delayed one to handle timing differences in packaged apps
+				doRefresh();
+				setTimeout(doRefresh, 200);
 			} catch (e) { console.debug('refresh after import failed', e && e.message); }
+
 			// show a short toast with number of imported items (count successful results)
 			try {
 				let doneCount = 0;
