@@ -63,14 +63,18 @@ class MainApp {
 			const product = await db.getProductById(productId);
 			console.log('generate-pdf called for productId:', productId, 'product:', product);
 			if (!product) {
-				await dialog.showMessageBox({ type: 'error', message: 'Product not found' });
+				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				await dialog.showMessageBox(senderWin, { type: 'error', message: 'Product not found' });
+				restoreFocus(senderWin);
 				throw new Error('Product not found');
 			}
 			const result = await pdfGen.generatePdfForProduct(product, template);
 			// pdf generator may return either a string path or an object { path, ... }
 			const pdfPath = (typeof result === 'string') ? result : (result && result.path) ? result.path : null;
 			if (!pdfPath) {
-				await dialog.showMessageBox({ type: 'error', message: 'PDF generation failed: no path returned' });
+				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				await dialog.showMessageBox(senderWin, { type: 'error', message: 'PDF generation failed: no path returned' });
+				restoreFocus(senderWin);
 				throw new Error('PDF generation failed: no path returned');
 			}
 			try {
@@ -79,11 +83,15 @@ class MainApp {
 				// restore focus after launching external viewer
 				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
 				if (openResult) {
-					await dialog.showMessageBox({ type: 'error', message: 'Failed to open PDF: ' + openResult });
+					const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+					await dialog.showMessageBox(senderWin, { type: 'error', message: 'Failed to open PDF: ' + openResult });
+					restoreFocus(senderWin);
 				}
 			} catch (err) {
 				console.error('Error opening PDF from main:', err);
-				await dialog.showMessageBox({ type: 'error', message: 'Error opening PDF: ' + err.message });
+				const senderWin = BrowserWindow.fromWebContents(event.sender) || this.win;
+				await dialog.showMessageBox(senderWin, { type: 'error', message: 'Error opening PDF: ' + err.message });
+				restoreFocus(senderWin);
 				try { setTimeout(() => restoreFocus(BrowserWindow.fromWebContents(event.sender) || this.win), 200); } catch (e) {}
 			}
 			return pdfPath;
