@@ -263,7 +263,9 @@ window.addEventListener('DOMContentLoaded', () => {
 			} catch (e) { console.debug('refresh after import failed', e && e.message); }
 			// show a short toast with number of imported items (count successful results)
 			try {
-				const doneCount = Array.isArray(res) ? res.filter(Boolean).length : (res ? 1 : 0);
+				let doneCount = 0;
+				if (Array.isArray(res)) doneCount = res.reduce((acc, r) => acc + ((r && r.ok) ? 1 : 0), 0);
+				else if (res && res.ok) doneCount = 1;
 				showToast((window.getI18nMessage && window.getI18nMessage('import_done')) ? (window.getI18nMessage('import_done') + ` (${doneCount})`) : `Import complete (${doneCount})`);
 			} catch(e) {}
 		});

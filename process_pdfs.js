@@ -121,10 +121,12 @@ async function processFile(filePath) {
         if (String(exact.text_body || '') !== String(savedText || '')) {
           try { await database.updateProduct({ id: exact.id, name: name || exact.name, text_body: savedText }); console.log('Updated existing product text_body for id', exact.id); exact.text_body = savedText; } catch(e){ /* ignore update errors */ }
         }
-        return exact;
+        return { ok: true, existing: true, id: exact.id, name: exact.name, ean: exact.ean };
       }
     } catch (errCheck) {
       console.error('Error checking existing products for EAN', ean, errCheck && errCheck.message);
+      // return an error result so caller knows
+      return { ok: false, error: 'CheckExistingError: ' + (errCheck && errCheck.message) };
     }
 
     try {
@@ -138,10 +140,10 @@ async function processFile(filePath) {
       } catch (wfErr) {
         console.error('Failed to write text file for', filePath, wfErr.message);
       }
-      return res;
+      return { ok: true, existing: false, id: res.id, name: res.name, ean: res.ean };
     } catch (dbErr) {
       console.error('DB insert failed for', filePath, dbErr && dbErr.message);
-      return null;
+      return { ok: false, error: 'DBInsertError: ' + (dbErr && dbErr.message) };
     }
   }
   catch (err) {
