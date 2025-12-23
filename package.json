@@ -36,12 +36,6 @@
         "zip"
       ]
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "TheAnhD",
-        "repo": "navody"
-      }
-    ]
+  "publish": []
   }
 }
