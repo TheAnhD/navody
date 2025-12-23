@@ -1,13 +1,15 @@
 {
   "name": "navody",
   "version": "0.1.0",
+  "description": "Navody — local PDF scanner and product manager",
+  "author": "TheAnhD",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "process-pdfs": "node process_pdfs.js",
     "install-font": "node scripts/install-font.js",
     "make-icon": "./scripts/make_icons.sh",
-  "dist": "electron-builder"
+    "dist": "electron-builder"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
@@ -20,8 +22,6 @@
     "electron": "^25.0.0",
     "electron-builder": "^26.0.12"
   },
-  "description": "Navody — local PDF scanner and product manager",
-  "author": "TheAnhD",
   "build": {
     "appId": "com.theanh.navody",
     "productName": "Navody",
