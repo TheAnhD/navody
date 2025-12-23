@@ -8,9 +8,48 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      ELECTRON_VERSION: '25.9.8'
+      ELECTRON_CACHE: ${{ runner.temp }}\electron-cache
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Cache electron download
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: ${{ runner.os }}-electron-${{ env.ELECTRON_VERSION }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Pre-download Electron (retries)
+        if: always()
+        shell: pwsh
+        run: |
+          $url = "https://github.com/electron/electron/releases/download/v${{ env.ELECTRON_VERSION }}/electron-v${{ env.ELECTRON_VERSION }}-win32-x64.zip"
+          $dest = Join-Path "${{ env.ELECTRON_CACHE }}" "download\v${{ env.ELECTRON_VERSION }}"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $file = Join-Path $dest "electron-v${{ env.ELECTRON_VERSION }}-win32-x64.zip"
+          $max = 5; $i = 0
+          while ($i -lt $max -and -not (Test-Path $file)) {
+            try {
+              Write-Host "Attempting download ($($i+1)) -> $url"
+              Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing -TimeoutSec 180
+            } catch {
+              Write-Host "Download attempt $($i+1) failed: $($_.Exception.Message)"
+              Remove-Item -Force $file -ErrorAction SilentlyContinue
+              Start-Sleep -Seconds (5 * ($i+1))
+            }
+            $i++
+          }
+          if (-not (Test-Path $file)) { Write-Error "Failed to download Electron after $max attempts"; exit 1 }
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
