@@ -25,7 +25,6 @@ jobs:
           node-version: '20'
 
       - name: Ensure NSIS (makensis) is installed
-        if: runner.os == 'Windows'
         run: |
           choco feature enable -n allowGlobalConfirmation || true
           choco install -y nsis
@@ -58,9 +57,9 @@ jobs:
           Write-Host "Downloaded Electron to $dest"
 
       - name: Verify icon exists
-        run: |
-          if (Test-Path assets/app.ico) { echo "assets/app.ico present" } else { echo "assets/app.ico missing" }
         shell: pwsh
+        run: |
+          if (Test-Path assets/app.ico) { Write-Host "assets/app.ico present" } else { Write-Host "assets/app.ico missing" }
 
       - name: Check for ffmpeg.dll (build inclusion)
         shell: pwsh
@@ -70,12 +69,13 @@ jobs:
       - name: Build Windows artifacts (no publish)
         shell: pwsh
         env:
-          ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
-          Write-Host "Signing env CSC_LINK present? -> $([bool]::Parse(([string]::IsNullOrEmpty($env:CSC_LINK) ) -eq $false -as [string]))"
+          # Set ELECTRON_CACHE at runtime
+          $env:ELECTRON_CACHE = Join-Path $env:RUNNER_TEMP 'electron-cache'
           Write-Host "ELECTRON_CACHE=$env:ELECTRON_CACHE"
+          Write-Host "Signing env CSC_LINK present? -> $([bool]::Parse(([string]::IsNullOrEmpty($env:CSC_LINK) ) -eq $false -as [string]))"
           Write-Host "Starting electron-builder (output => build.log)"
           npx electron-builder --win --x64 --publish never *>&1 | Tee-Object -FilePath build.log
           $exit = $LASTEXITCODE
@@ -91,7 +91,6 @@ jobs:
             dist/
             build.log
 
-      # Create a GitHub Release and upload the built portable EXE (uses repository GITHUB_TOKEN).
       - name: Create Release v1.0.0
         id: create_release
         uses: actions/create-release@v1
