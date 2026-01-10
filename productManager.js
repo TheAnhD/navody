@@ -204,7 +204,18 @@ class ProductManager {
             if (window.formatManager) {
                 window.formatManager.populateOptions(this.formatSelectList, (f) => {
                     this.formatModalEl.classList.add('hidden');
-                    this.generatePdfForProductId(productId, btn, f);
+                    // read test controls and build options
+                    const testModeEl = document.getElementById('fmt_testMode');
+                    const testStartEl = document.getElementById('fmt_testStart');
+                    const testCountEl = document.getElementById('fmt_testCount');
+                    const opts = {};
+                    if (testModeEl && testModeEl.checked) {
+                        opts.testMode = true;
+                        opts.testStart = Math.max(1, parseInt(testStartEl && testStartEl.value, 10) || 1);
+                        opts.testCount = Math.max(1, parseInt(testCountEl && testCountEl.value, 10) || 1);
+                    }
+                    console.log('generatePdf: invoking with options=', opts, 'template=', f);
+                    this.generatePdfForProductId(productId, btn, f, opts);
                 });
             }
         }
@@ -216,7 +227,7 @@ class ProductManager {
         }
     }
 
-    async generatePdfForProductId(id, btn, format) {
+    async generatePdfForProductId(id, btn, format, opts) {
         try {
             if (btn) btn.disabled = true;
             if (this.generateStatusEl) this.generateStatusEl.textContent = 'Generating PDF...';
@@ -233,22 +244,23 @@ class ProductManager {
             const vGapMm = Number(fmt.vGapMm || 0);
             const orig = Object.assign({}, fmt);
 
-            // Total required width = leftOffset + 2*margin + cols*labelW + (cols-1)*hGap
-            const totalLabelsWidth = pageLeftOffsetMm + (marginMm * 2) + (Number(fmt.labelWidthMm) || 0) * cols + Math.max(0, cols - 1) * hGapMm;
-            // Total required height = topOffset + 2*margin + rows*labelH + (rows-1)*vGap
-            const totalLabelsHeight = pageTopOffsetMm + (marginMm * 2) + (Number(fmt.labelHeightMm) || 0) * rows + Math.max(0, rows - 1) * vGapMm;
+            // Total required width = leftOffset + cols*labelW + (cols-1)*hGap
+            const totalLabelsWidth = pageLeftOffsetMm + (Number(fmt.labelWidthMm) || 0) * cols + Math.max(0, cols - 1) * hGapMm;
+            // Total required height = topOffset + rows*labelH + (rows-1)*vGap
+            const totalLabelsHeight = pageTopOffsetMm + (Number(fmt.labelHeightMm) || 0) * rows + Math.max(0, rows - 1) * vGapMm;
 
             if (totalLabelsWidth > pageWidthMm || totalLabelsHeight > pageHeightMm) {
                 // Show a confirmation to the user asking to auto-fit the format to page
                 const msgParts = [];
                 if (totalLabelsWidth > pageWidthMm) msgParts.push(`width (${totalLabelsWidth.toFixed(1)}mm > ${pageWidthMm}mm)`);
                 if (totalLabelsHeight > pageHeightMm) msgParts.push(`height (${totalLabelsHeight.toFixed(1)}mm > ${pageHeightMm}mm)`);
-                const proceed = await showConfirm(`The chosen format will overflow the page (${msgParts.join(', ')}).\nClick OK to automatically adjust label size to fit the page, or Cancel to keep values as-is.`, { okText: (window.getI18nMessage && window.getI18nMessage('ok')) || 'OK', cancelText: (window.getI18nMessage && window.getI18nMessage('cancel')) || 'Cancel' });
+                const proceed = await showConfirm(`The chosen format will overflow the page (${msgParts.join(', ')}).
+ Click OK to automatically adjust label size to fit the page, or Cancel to keep values as-is.`, { okText: (window.getI18nMessage && window.getI18nMessage('ok')) || 'OK', cancelText: (window.getI18nMessage && window.getI18nMessage('cancel')) || 'Cancel' });
                 if (proceed) {
                     // compute max label width/height that fits when considering offsets and gaps
-                    const availableWidthForLabels = pageWidthMm - pageLeftOffsetMm - (marginMm * 2) - Math.max(0, cols - 1) * hGapMm;
+                    const availableWidthForLabels = pageWidthMm - pageLeftOffsetMm - Math.max(0, cols - 1) * hGapMm;
                     const maxLabelW = Math.floor(Math.max(1, availableWidthForLabels / cols));
-                    const availableHeightForLabels = pageHeightMm - pageTopOffsetMm - (marginMm * 2) - Math.max(0, rows - 1) * vGapMm;
+                    const availableHeightForLabels = pageHeightMm - pageTopOffsetMm - Math.max(0, rows - 1) * vGapMm;
                     const maxLabelH = Math.floor(Math.max(1, availableHeightForLabels / rows));
                     fmt = Object.assign({}, fmt, { labelWidthMm: maxLabelW, labelHeightMm: maxLabelH });
                     console.log('Auto-fit applied. new template:', fmt, 'original:', orig);
@@ -257,7 +269,7 @@ class ProductManager {
                 }
             }
             console.log('generatePdf: originalTemplate=', orig, 'usedTemplate=', fmt);
-            const p = await window.api.generatePdf({ productId: id, template: fmt });
+            const p = await window.api.generatePdf({ productId: id, template: fmt, options: opts });
             if (this.generateStatusEl) this.generateStatusEl.textContent = `PDF generated: ${p}`;
             window.api.openPath(p);
         } catch (err) {

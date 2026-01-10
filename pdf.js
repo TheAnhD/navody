@@ -61,7 +61,7 @@ function wrapTextToWidth(font, text, size, maxWidth) {
 	return lines;
 }
 
-async function generatePdfForProduct(product, template) {
+async function generatePdfForProduct(product, template, options) {
 	const pageSize = (template && template.pageSize) || 'A4';
 	const pageWidth = pageSize === 'A4' ? mmToPoints(210) : mmToPoints(210);
 	const pageHeight = pageSize === 'A4' ? mmToPoints(297) : mmToPoints(297);
@@ -119,8 +119,23 @@ async function generatePdfForProduct(product, template) {
 	const minFontSize = 4;
 	const lineHeightFactor = 1.12;
 
+	// Test mode: if enabled, only render a subset of labels on first page
+	const testMode = options && options.testMode;
+	const testStart = testMode ? Math.max(1, Number(options.testStart) || 1) : 1; // 1-based
+	const testCount = testMode ? Math.max(1, Number(options.testCount) || 1) : (rows * cols);
+	let printed = 0;
+	console.log('pdf.generatePdfForProduct: testMode=', testMode, 'testStart=', testStart, 'testCount=', testCount, 'rows=', rows, 'cols=', cols);
+
 	for (let r = 0; r < rows; r++) {
 		for (let c = 0; c < cols; c++) {
+			const labelIndex = r * cols + c + 1; // 1-based index on the page
+			if (testMode) {
+				if (labelIndex < testStart || printed >= testCount) {
+					// skip rendering this label (leave it blank)
+					continue;
+				}
+			}
+
 			const x = pageLeftOffset + margin + c * (labelW + hGap);
 			const y = pageHeight - pageTopOffset - margin - (r + 1) * labelH - r * vGap; // bottom of label
 
@@ -193,6 +208,7 @@ async function generatePdfForProduct(product, template) {
 			}
 
 			if (r === 0 && c === 0) results.push({ sample: renderLines.slice(0, 6) });
+			if (testMode) printed++;
 		}
 	}
 

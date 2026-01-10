@@ -64,9 +64,13 @@ class MainApp {
 			return db.deleteProduct(id);
 		});
 
-		ipcMain.handle('generate-pdf', async (event, { productId, template }) => {
+		ipcMain.handle('generate-pdf', async (event, payload) => {
 			const db = require('./db');
 			const pdfGen = require('./pdf');
+			const productId = payload && payload.productId;
+			const template = payload && payload.template;
+			const options = payload && payload.options;
+			console.log('main.generate-pdf called with options=', options, 'template=', template);
 			const product = await db.getProductById(productId);
 			console.log('generate-pdf called for productId:', productId, 'product:', product);
 			if (!product) {
@@ -77,7 +81,7 @@ class MainApp {
 				setTimeout(() => restoreFocus(senderWin, 6, 200, 'product-not-found-delayed'), 300);
 				throw new Error('Product not found');
 			}
-			const result = await pdfGen.generatePdfForProduct(product, template);
+			const result = await pdfGen.generatePdfForProduct(product, template, options);
 			// pdf generator may return either a string path or an object { path, ... }
 			const pdfPath = (typeof result === 'string') ? result : (result && result.path) ? result.path : null;
 			if (!pdfPath) {
