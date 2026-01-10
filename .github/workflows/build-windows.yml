@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+# Grant explicit write permission to contents so the built-in GITHUB_TOKEN can create releases
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -116,14 +120,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $uploadUrl = '${{ steps.create_release.outputs.upload_url }}'
+
+          if ([string]::IsNullOrEmpty($uploadUrl)) {
+            Write-Error "Create Release step did not return an upload_url. The workflow likely lacks permission to create releases (Resource not accessible by integration). Ensure 'permissions: contents: write' is set and this run is not from a fork."
+            exit 1
+          }
+
           $artifactDir = 'release-files'
+
+          # Expand any zip artifacts so we can find .exe files inside them
+          Get-ChildItem $artifactDir -Recurse -Filter *.zip | ForEach-Object {
+            Write-Host "Expanding zip: $($_.FullName)"
+            Try { Expand-Archive -Path $_.FullName -DestinationPath ($_.DirectoryName + '\\' + $_.BaseName + '_unzipped') -Force } Catch { Write-Warning "Failed to expand $($_.FullName): $($_.Exception.Message)" }
+          }
+
           $exe = Get-ChildItem $artifactDir -Recurse -Filter *.exe | Select-Object -First 1
-          if (-not $exe) { Write-Error "No exe found in $artifactDir"; exit 1 }
+          if (-not $exe) { Write-Error "No exe found in $artifactDir after extracting zips"; exit 1 }
+
           $filePath = $exe.FullName
           $fileName = $exe.Name
-          $uploadUrl = ($uploadUrl -replace '\{.*\}$','') + "?name=$fileName"
+          $uploadUrl = ($uploadUrl -replace '\\{.*\\}$','') + "?name=$fileName"
           Write-Host "Uploading $filePath to $uploadUrl"
           $token = $env:GITHUB_TOKEN
           $bytes = [System.IO.File]::ReadAllBytes($filePath)
           $result = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/octet-stream' } -Body $bytes -UseBasicParsing
           Write-Host "Upload result: $($result | ConvertTo-Json -Depth 3)"
+
+      - name: Post Setup Node.js
+        run: echo "Post setup"
+
+      - name: Post Checkout code
+        run: echo "Post checkout"
