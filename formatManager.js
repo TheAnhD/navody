@@ -10,7 +10,7 @@ class FormatManager {
             labelH: document.getElementById(options.labelHId || 'fmt_labelH'),
             cols: document.getElementById(options.colsId || 'fmt_cols'),
             rows: document.getElementById(options.rowsId || 'fmt_rows'),
-                margin: document.getElementById(options.marginId || 'fmt_margin'),
+                // removed margin from form fields; margin is not used for placement
                 pageTopOffset: document.getElementById(options.pageTopOffsetId || 'fmt_pageTopOffset'),
                 pageLeftOffset: document.getElementById(options.pageLeftOffsetId || 'fmt_pageLeftOffset'),
                 hGap: document.getElementById(options.hGapId || 'fmt_hGap'),
@@ -30,6 +30,10 @@ class FormatManager {
             rows: document.getElementById('edit_fmt_rows'),
             margin: document.getElementById('edit_fmt_margin'),
             fontSize: document.getElementById('edit_fmt_fontSize'),
+            pageTopOffset: document.getElementById('edit_fmt_pageTopOffset'),
+            pageLeftOffset: document.getElementById('edit_fmt_pageLeftOffset'),
+            hGap: document.getElementById('edit_fmt_hGap'),
+            vGap: document.getElementById('edit_fmt_vGap'),
         };
         this.bind();
     }
@@ -69,7 +73,7 @@ class FormatManager {
 
         // Bind preview updates for create form
         this.previewEl = document.getElementById('formatPreview');
-        const inputs = ['labelW','labelH','cols','rows','margin','pageTopOffset','pageLeftOffset','hGap','vGap','fontSize'];
+        const inputs = ['labelW','labelH','cols','rows','pageTopOffset','pageLeftOffset','hGap','vGap','fontSize'];
         inputs.forEach(k => {
             const el = this.formFields[k];
             if (el) el.addEventListener('input', () => this.renderPreviewFromForm());
@@ -93,7 +97,7 @@ class FormatManager {
             labelHeightMm: Number(this.formFields.labelH && this.formFields.labelH.value) || 20,
             cols: parseInt(this.formFields.cols && this.formFields.cols.value,10) || 3,
             rows: parseInt(this.formFields.rows && this.formFields.rows.value,10) || 8,
-            marginMm: Number(this.formFields.margin && this.formFields.margin.value) || 5,
+            // margin removed from preview; placement uses pageLeftOffset only
             pageTopOffsetMm: Number(this.formFields.pageTopOffset && this.formFields.pageTopOffset.value) || 0,
             pageLeftOffsetMm: Number(this.formFields.pageLeftOffset && this.formFields.pageLeftOffset.value) || 0,
             hGapMm: Number(this.formFields.hGap && this.formFields.hGap.value) || 0,
@@ -112,7 +116,6 @@ class FormatManager {
             labelHeightMm: Number(this.editFields.labelH && this.editFields.labelH.value) || 20,
             cols: parseInt(this.editFields.cols && this.editFields.cols.value,10) || 3,
             rows: parseInt(this.editFields.rows && this.editFields.rows.value,10) || 8,
-            marginMm: Number(this.editFields.margin && this.editFields.margin.value) || 5,
             pageTopOffsetMm: Number(this.editFields.pageTopOffset && this.editFields.pageTopOffset.value) || 0,
             pageLeftOffsetMm: Number(this.editFields.pageLeftOffset && this.editFields.pageLeftOffset.value) || 0,
             hGapMm: Number(this.editFields.hGap && this.editFields.hGap.value) || 0,
@@ -131,7 +134,6 @@ class FormatManager {
         const offsetX = (w - pxW)/2; const offsetY = (h - pxH)/2;
         const labelWpx = fmt.labelWidthMm * scale;
         const labelHpx = fmt.labelHeightMm * scale;
-        const marginPx = (fmt.marginMm || 0) * scale;
         const topOffsetPx = (fmt.pageTopOffsetMm || 0) * scale;
         const leftOffsetPx = (fmt.pageLeftOffsetMm || 0) * scale;
         const hGapPx = (fmt.hGapMm || 0) * scale;
@@ -140,15 +142,22 @@ class FormatManager {
         let svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">`;
         // page rect
         svg += `<rect x="${offsetX}" y="${offsetY}" width="${pxW}" height="${pxH}" fill="#fff" stroke="#666" stroke-width="1"/>`;
-        // unusable margins around page (visual)
+        // top unusable area
         svg += `<rect x="${offsetX}" y="${offsetY}" width="${pxW}" height="${topOffsetPx}" fill="rgba(255,0,0,0.06)"/>`;
+        // show left offset area (pageLeftOffset) in light tint
         svg += `<rect x="${offsetX}" y="${offsetY}" width="${leftOffsetPx}" height="${pxH}" fill="rgba(255,0,0,0.04)"/>`;
+        // compute right gap after labels and show it
+        const totalLabelsWidth = (fmt.cols * labelWpx) + ((Math.max(0, fmt.cols - 1)) * hGapPx);
+        const rightGapPx = Math.max(0, pxW - (leftOffsetPx + totalLabelsWidth));
+        if (rightGapPx > 0) {
+            svg += `<rect x="${offsetX + pxW - rightGapPx}" y="${offsetY}" width="${rightGapPx}" height="${pxH}" fill="rgba(255,0,0,0.04)"/>`;
+        }
 
         // labels
         for (let r=0;r<fmt.rows;r++){
             for (let c=0;c<fmt.cols;c++){
-                const lx = offsetX + leftOffsetPx + marginPx + c * (labelWpx + hGapPx);
-                const ly = offsetY + topOffsetPx + marginPx + r * (labelHpx + vGapPx);
+                const lx = offsetX + leftOffsetPx + c * (labelWpx + hGapPx);
+                const ly = offsetY + topOffsetPx + r * (labelHpx + vGapPx);
                 svg += `<rect x="${lx}" y="${ly}" width="${labelWpx}" height="${labelHpx}" fill="rgba(0,128,0,0.03)" stroke="#0a0" stroke-width="0.5"/>`;
             }
         }

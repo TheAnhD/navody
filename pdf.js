@@ -70,7 +70,8 @@ async function generatePdfForProduct(product, template) {
 	const labelHeightMm = Number(template && template.labelHeightMm || 20);
 	const cols = Math.max(1, parseInt(template && template.cols || '3', 10));
 	const rows = Math.max(1, parseInt(template && template.rows || '8', 10));
-	const marginMm = Number(template && template.marginMm || 5);
+	// margin is intentionally ignored in placement; keep inner padding only
+	const marginMm = 0; // template && template.marginMm is deprecated for placement
 	let baseFontSize = Number(template && template.fontSize || 10);
 	const pageTopOffsetMm = Number(template && template.pageTopOffsetMm || 0);
 	const pageLeftOffsetMm = Number(template && template.pageLeftOffsetMm || 0);
@@ -79,7 +80,7 @@ async function generatePdfForProduct(product, template) {
 
 	const labelW = mmToPoints(labelWidthMm);
 	const labelH = mmToPoints(labelHeightMm);
-	const margin = mmToPoints(marginMm);
+	const margin = 0; // margin removed from layout calculations
 	const pageTopOffset = mmToPoints(pageTopOffsetMm);
 	const pageLeftOffset = mmToPoints(pageLeftOffsetMm);
 	const hGap = mmToPoints(hGapMm);
@@ -110,88 +111,85 @@ async function generatePdfForProduct(product, template) {
 		}
 
 	const results = [];
-	const availableInnerW = labelW - mmToPoints(2);
-	const availableInnerH = labelH - mmToPoints(2);
+
+	// Use a consistent inner padding inside each label and compute available area
+	const innerPadding = mmToPoints(1); // 1mm padding on all sides
+	const availableInnerW = Math.max(0, labelW - innerPadding * 2);
+	const availableInnerH = Math.max(0, labelH - innerPadding * 2);
 	const minFontSize = 4;
+	const lineHeightFactor = 1.12;
 
 	for (let r = 0; r < rows; r++) {
 		for (let c = 0; c < cols; c++) {
 			const x = pageLeftOffset + margin + c * (labelW + hGap);
-			const y = pageHeight - pageTopOffset - margin - (r + 1) * labelH - r * vGap;
+			const y = pageHeight - pageTopOffset - margin - (r + 1) * labelH - r * vGap; // bottom of label
 
-									// Wrap name separately and render it first (same base font size), then body below.
-									// Ensure bodyText does not contain any leading copies of the product name (avoid duplication).
-									const nameTextLocal = nameText || '';
-									let bodyText = String(product.text_body || '').trim();
-									try {
-										const ft = String(fullText || (product.text_body || '')).trim();
-										// Normalize function: remove diacritics and case for robust comparisons
-										const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
-										if (nameTextLocal) {
-											// split into lines and drop any leading lines that equal the name (possibly repeated)
-											const lines = ft.split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim());
-											while (lines.length && normalize(lines[0]) === normalize(nameTextLocal)) {
-												lines.shift();
-											}
-											bodyText = lines.join('\n').trim();
-										} else {
-											bodyText = ft;
-										}
-									} catch (e) {
-										bodyText = String(product.text_body || '').trim();
-									}
+			// inner box (left/top coordinates for content)
+			const innerLeft = x + innerPadding;
+			const innerTop = y + labelH - innerPadding; // y coordinate at top of inner box
+
+			// Prepare name and body text, removing duplicated leading name lines from body
+			const nameTextLocal = nameText || '';
+			let bodyText = String(product.text_body || '').trim();
+			try {
+				const ft = String(fullText || (product.text_body || '')).trim();
+				const normalize = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+				if (nameTextLocal) {
+					const lines = ft.split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim());
+					while (lines.length && normalize(lines[0]) === normalize(nameTextLocal)) {
+						lines.shift();
+					}
+					bodyText = lines.join('\n').trim();
+				} else {
+					bodyText = ft;
+				}
+			} catch (e) {
+				bodyText = String(product.text_body || '').trim();
+			}
+
+			// Determine font size that fits into availableInnerH
 			let usedSize = baseFontSize;
 			let nameLines = [];
 			let bodyLines = [];
-			// Try decreasing size until the full name + full body fits inside the label
-			// allow shrinking down to a low safety floor so long texts can still be rendered
-			const minPossibleSize = 2;
-			const lineHeightFactor = 1.12;
+
+			const minPossibleSize = minFontSize;
 			while (true) {
-				nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW - mmToPoints(2)) : [];
-				bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW - mmToPoints(2)) : [];
-				const nameH = nameLines.length * usedSize * lineHeightFactor + (nameLines.length ? usedSize * 0.2 : 0);
-				const bodyH = bodyLines.length * usedSize * lineHeightFactor;
+				nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW) : [];
+				bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW) : [];
+				const lineH = usedSize * lineHeightFactor;
+				const nameH = nameLines.length * lineH + (nameLines.length ? usedSize * 0.2 : 0);
+				const bodyH = bodyLines.length * lineH;
 				if (nameH + bodyH <= availableInnerH) {
-					break; // everything fits
+					break; // fits
 				}
 				if (usedSize <= minPossibleSize) {
-					// As a last resort, scale down proportionally to try to fit
+					// scale proportionally as last resort
 					const scale = availableInnerH / Math.max(1, (nameH + bodyH));
 					usedSize = Math.max(minPossibleSize, usedSize * scale);
-					// recompute wrapped lines with new fractional size
-					nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW - mmToPoints(2)) : [];
-					bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW - mmToPoints(2)) : [];
+					// recompute lines for fractional size
+					nameLines = nameTextLocal ? wrapTextToWidth(font, nameTextLocal, usedSize, availableInnerW) : [];
+					bodyLines = bodyText ? wrapTextToWidth(font, bodyText, usedSize, availableInnerW) : [];
 					break;
 				}
 				usedSize = Math.max(minPossibleSize, usedSize - 1);
 			}
 
-			// Build renderLines: include all name + body lines (no truncation) using computed usedSize
-			const topPadding = mmToPoints(1);
-			let accH = 0;
-			let renderLines = [];
-			// Add name lines first (if any)
-			for (const ln of nameLines) {
-				renderLines.push({ text: ln, size: usedSize, isName: true });
-				accH += usedSize * lineHeightFactor;
-			}
-			// Add all body lines; since we ensured they fit, we don't truncate
-			for (const ln of bodyLines) {
-				renderLines.push({ text: ln, size: usedSize, isName: false });
-				accH += usedSize * lineHeightFactor;
-			}
+			// Build render lines and render within inner box
+			const renderLines = [];
+			for (const ln of nameLines) renderLines.push({ text: ln, size: usedSize, isName: true });
+			for (const ln of bodyLines) renderLines.push({ text: ln, size: usedSize, isName: false });
 
-			// Align to top inside the label
-			const topY = y + labelH - topPadding;
-			let offset = 0;
+			// Compute starting baseline: first line baseline should be innerTop - usedSize
+			let baselineY = innerTop - usedSize;
+			const lineH = usedSize * lineHeightFactor;
+
 			for (const ln of renderLines) {
 				const w = font.widthOfTextAtSize(ln.text, ln.size);
-				const tx = x + (labelW - w) / 2;
-				// draw baseline at topY minus accumulated offset and line size
-				const ty = topY - offset - ln.size;
+				// center horizontally inside inner area
+				const tx = innerLeft + Math.max(0, (availableInnerW - w) / 2);
+				const ty = baselineY; // drawText y is baseline
 				page.drawText(ln.text, { x: tx, y: ty, size: ln.size, font, color: rgb(0, 0, 0) });
-				offset += ln.size * 1.12;
+				baselineY -= lineH;
 			}
 
 			if (r === 0 && c === 0) results.push({ sample: renderLines.slice(0, 6) });
