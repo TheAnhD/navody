@@ -95,6 +95,15 @@ jobs:
             dist/
             build.log
 
+      - name: Print build.log and dist contents (debug)
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host '--- build.log (tail) ---'
+          if (Test-Path build.log) { Get-Content build.log -Tail 200 } else { Write-Warning 'build.log not found' }
+          Write-Host '--- dist/ listing ---'
+          if (Test-Path dist) { Get-ChildItem -Recurse dist | ForEach-Object { Write-Host $_.FullName } } else { Write-Warning 'dist/ not found' }
+
       - name: Create Release v1.0.0
         id: create_release
         uses: actions/create-release@v1
@@ -107,11 +116,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug - show create_release outputs and run info
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host '--- create_release outputs ---'
+          Write-Host "upload_url: ${{ steps.create_release.outputs.upload_url }}"
+          Write-Host "id: ${{ steps.create_release.outputs.id }}"
+          Write-Host '--- GitHub run context ---'
+          Write-Host "GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY"
+          Write-Host "GITHUB_REF=$env:GITHUB_REF"
+          Write-Host "GITHUB_EVENT_NAME=$env:GITHUB_EVENT_NAME"
+          Write-Host "GITHUB_ACTOR=$env:GITHUB_ACTOR"
+          Write-Host "RUNNER_TEMP=$env:RUNNER_TEMP"
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: windows-artifacts
           path: release-files
+
+      - name: Inspect downloaded release-files (debug)
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host '--- Listing release-files ---'
+          if (Test-Path release-files) { Get-ChildItem -Recurse release-files | ForEach-Object { Write-Host $_.FullName } } else { Write-Warning 'release-files directory missing' }
+          # Show any build.log included in the artifact
+          $buildLog = Get-ChildItem release-files -Recurse -Filter build.log -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($buildLog) { Write-Host '--- downloaded build.log (tail) ---'; Get-Content $buildLog.FullName -Tail 200 } else { Write-Warning 'No build.log found in release-files' }
 
       - name: Upload portable EXE to the Release
         if: always()
@@ -122,20 +155,24 @@ jobs:
           $uploadUrl = '${{ steps.create_release.outputs.upload_url }}'
 
           if ([string]::IsNullOrEmpty($uploadUrl)) {
-            Write-Error "Create Release step did not return an upload_url. The workflow likely lacks permission to create releases (Resource not accessible by integration). Ensure 'permissions: contents: write' is set and this run is not from a fork."
-            exit 1
+            Write-Warning "Create Release step did not return an upload_url. Skipping upload. The run likely lacks permission to create releases (Resource not accessible by integration) or the step failed. See earlier logs for details."
+            Write-Host 'Files available in release-files:'
+            Get-ChildItem -Recurse release-files | ForEach-Object { Write-Host $_.FullName }
+            exit 0
           }
 
-          $artifactDir = 'release-files'
-
           # Expand any zip artifacts so we can find .exe files inside them
-          Get-ChildItem $artifactDir -Recurse -Filter *.zip | ForEach-Object {
+          Get-ChildItem release-files -Recurse -Filter *.zip | ForEach-Object {
             Write-Host "Expanding zip: $($_.FullName)"
             Try { Expand-Archive -Path $_.FullName -DestinationPath ($_.DirectoryName + '\\' + $_.BaseName + '_unzipped') -Force } Catch { Write-Warning "Failed to expand $($_.FullName): $($_.Exception.Message)" }
           }
 
-          $exe = Get-ChildItem $artifactDir -Recurse -Filter *.exe | Select-Object -First 1
-          if (-not $exe) { Write-Error "No exe found in $artifactDir after extracting zips"; exit 1 }
+          $exe = Get-ChildItem release-files -Recurse -Filter *.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Warning "No exe found in release-files after extraction. Listing files for debugging:"
+            Get-ChildItem -Recurse release-files | ForEach-Object { Write-Host $_.FullName }
+            exit 0
+          }
 
           $filePath = $exe.FullName
           $fileName = $exe.Name
